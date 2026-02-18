@@ -3,10 +3,52 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { tokens } from '../styles/tokens';
 
 const kpis = [
-  { label: 'Active Parents', value: '1,284', delta: '+4.2%' },
-  { label: 'Active Children', value: '2,913', delta: '+3.1%' },
-  { label: 'Baseline Runs', value: '48', delta: '+6' },
-  { label: 'Avg. Session', value: '7.6 min', delta: '+0.4' },
+  { label: 'Daily Active Parents', value: '1,284', delta: '+4.2%' },
+  { label: 'Daily Active Children', value: '2,913', delta: '+3.1%' },
+  { label: 'Weekly Active Users', value: '7,842', delta: '+5.6%' },
+  { label: 'DAU / WAU', value: '36%', delta: '+1.2%' },
+];
+
+const engagement = [
+  { label: 'Avg sessions / child', value: '3.6', delta: '+0.4' },
+  { label: 'Avg session length', value: '7.6 min', delta: '+0.4' },
+  { label: 'Lessons completed', value: '12.4k', delta: '+8%' },
+  { label: '% baseline completed', value: '62%', delta: '+3%' },
+];
+
+const outcomes = [
+  { label: 'Median mastery (Maths)', value: '72%' },
+  { label: 'Median mastery (Literacy)', value: '64%' },
+  { label: 'Median mastery (Science)', value: '59%' },
+  { label: '% skills mastered', value: '41%' },
+];
+
+const retention = [
+  { label: 'New parents (7d)', value: '312', delta: '+9%' },
+  { label: '7-day retention', value: '48%', delta: '+2%' },
+  { label: '30-day retention', value: '31%', delta: '+1%' },
+  { label: 'At-risk accounts', value: '126', delta: '-4%' },
+];
+
+const contentHealth = [
+  { label: 'Pool coverage (all)', value: '71%' },
+  { label: 'Missing skills', value: '42' },
+  { label: 'Validation fails', value: '3' },
+  { label: 'Generator error rate', value: '1.6%' },
+];
+
+const ops = [
+  { label: 'Runs this week', value: '48' },
+  { label: 'Success rate', value: '92%' },
+  { label: 'Avg run time', value: '8m 14s' },
+  { label: 'Queued runs', value: '5' },
+];
+
+const revenue = [
+  { label: 'Trials', value: '142' },
+  { label: 'Paid', value: '61' },
+  { label: 'Trial→Paid', value: '18%' },
+  { label: 'MRR', value: '$4.2k' },
 ];
 
 const alerts = [
@@ -27,7 +69,7 @@ export const DashboardScreen: React.FC = () => {
       <View style={styles.headerRow}>
         <View>
           <Text style={styles.title}>Admin Dashboard</Text>
-          <Text style={styles.subtitle}>Live overview of Bright Sprout growth, content health, and baseline coverage.</Text>
+          <Text style={styles.subtitle}>Live overview of Bright Sprout growth, content health, and learning outcomes.</Text>
         </View>
         <View style={styles.badge}>
           <Text style={styles.badgeLabel}>Live</Text>
@@ -35,24 +77,35 @@ export const DashboardScreen: React.FC = () => {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Key Metrics</Text>
-        <View style={styles.kpiRow}>
-          {kpis.map((kpi) => (
-            <View key={kpi.label} style={styles.kpiCard}>
-              <Text style={styles.kpiLabel}>{kpi.label}</Text>
-              <Text style={styles.kpiValue}>{kpi.value}</Text>
-              <Text style={styles.kpiDelta}>{kpi.delta} vs last week</Text>
-            </View>
-          ))}
-        </View>
-      </View>
+      <DashboardSection title="Active Usage">
+        <MetricGrid items={kpis} />
+      </DashboardSection>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeaderRow}>
-          <Text style={styles.sectionTitle}>Weekly Activity</Text>
-          <Text style={styles.sectionMeta}>Parents + Children sessions</Text>
-        </View>
+      <DashboardSection title="Engagement & Learning">
+        <MetricGrid items={engagement} />
+      </DashboardSection>
+
+      <DashboardSection title="Mastery & Outcomes">
+        <MetricGrid items={outcomes} />
+      </DashboardSection>
+
+      <DashboardSection title="Retention & Churn">
+        <MetricGrid items={retention} />
+      </DashboardSection>
+
+      <DashboardSection title="Content Health">
+        <MetricGrid items={contentHealth} />
+      </DashboardSection>
+
+      <DashboardSection title="Operational">
+        <MetricGrid items={ops} />
+      </DashboardSection>
+
+      <DashboardSection title="Revenue (Preview)">
+        <MetricGrid items={revenue} />
+      </DashboardSection>
+
+      <DashboardSection title="Weekly Activity">
         <View style={styles.card}>
           <View style={styles.chartRow}>
             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => (
@@ -63,30 +116,15 @@ export const DashboardScreen: React.FC = () => {
             ))}
           </View>
         </View>
-      </View>
+      </DashboardSection>
 
       <View style={styles.grid}>
         <View style={styles.cardLarge}>
           <Text style={styles.cardTitle}>Content Coverage</Text>
           <Text style={styles.cardSub}>Blueprint vs pool coverage by subject</Text>
-          <View style={styles.progressRow}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '78%' }]} />
-            </View>
-            <Text style={styles.progressLabel}>Maths 78%</Text>
-          </View>
-          <View style={styles.progressRow}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '72%' }]} />
-            </View>
-            <Text style={styles.progressLabel}>Literacy 72%</Text>
-          </View>
-          <View style={styles.progressRow}>
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: '64%' }]} />
-            </View>
-            <Text style={styles.progressLabel}>Science 64%</Text>
-          </View>
+          <ProgressRow label="Maths 78%" width="78%" />
+          <ProgressRow label="Literacy 72%" width="72%" />
+          <ProgressRow label="Science 64%" width="64%" />
         </View>
         <View style={styles.cardLarge}>
           <Text style={styles.cardTitle}>Operational Alerts</Text>
@@ -103,8 +141,7 @@ export const DashboardScreen: React.FC = () => {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Baseline Runs</Text>
+      <DashboardSection title="Recent Baseline Runs">
         <View style={styles.table}>
           <View style={styles.tableHeader}>
             <Text style={styles.tableHeaderText}>Run</Text>
@@ -123,10 +160,38 @@ export const DashboardScreen: React.FC = () => {
             </View>
           ))}
         </View>
-      </View>
+      </DashboardSection>
     </ScrollView>
   );
 };
+
+const DashboardSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+  <View style={styles.section}>
+    <Text style={styles.sectionTitle}>{title}</Text>
+    {children}
+  </View>
+);
+
+const MetricGrid: React.FC<{ items: Array<{ label: string; value: string; delta?: string }> }> = ({ items }) => (
+  <View style={styles.kpiRow}>
+    {items.map((kpi) => (
+      <View key={kpi.label} style={styles.kpiCard}>
+        <Text style={styles.kpiLabel}>{kpi.label}</Text>
+        <Text style={styles.kpiValue}>{kpi.value}</Text>
+        {kpi.delta ? <Text style={styles.kpiDelta}>{kpi.delta} vs last week</Text> : null}
+      </View>
+    ))}
+  </View>
+);
+
+const ProgressRow: React.FC<{ label: string; width: string }> = ({ label, width }) => (
+  <View style={styles.progressRow}>
+    <View style={styles.progressBar}>
+      <View style={[styles.progressFill, { width }]as any} />
+    </View>
+    <Text style={styles.progressLabel}>{label}</Text>
+  </View>
+);
 
 const styles = StyleSheet.create({
   container: {
@@ -153,7 +218,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 6,
-    maxWidth: 460,
+    maxWidth: 520,
   },
   badge: {
     paddingVertical: 8,
@@ -181,14 +246,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
-  },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  sectionMeta: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 11,
   },
   kpiRow: {
     flexDirection: 'row',
@@ -342,4 +399,3 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
-

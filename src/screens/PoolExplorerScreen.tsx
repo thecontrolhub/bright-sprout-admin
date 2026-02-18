@@ -23,7 +23,7 @@ export const PoolExplorerScreen: React.FC = () => (
         <Text style={styles.cardTitle}>{pool.skill}</Text>
         <Text style={styles.cardText}>{pool.stage} · {pool.items} items · {pool.coverage} coverage</Text>
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: pool.coverage }]} />
+          <View style={[styles.progressFill, { width: pool.coverage }] as any} />
         </View>
       </View>
     ))}

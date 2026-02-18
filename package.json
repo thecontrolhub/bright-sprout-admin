@@ -8,6 +8,8 @@
     "ios": "expo start --ios",
     "web": "next dev --webpack",
     "build": "next build",
+    "export": "next build && next export -o out",
+    "deploy:web": "npm run export && firebase deploy --only hosting",
     "lint": "next lint"
   },
   "dependencies": {

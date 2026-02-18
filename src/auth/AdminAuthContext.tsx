@@ -63,10 +63,15 @@ export const AdminAuthProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const signIn = React.useCallback(async (email: string, password: string) => {
     clearError();
     setState((prev) => ({ ...prev, loading: true }));
-    const user = await loginWithEmail(email, password);
-    const ok = await checkAdmin(user);
-    if (!ok) {
-      throw new Error('Admin access required.');
+    try {
+      const user = await loginWithEmail(email, password);
+      const ok = await checkAdmin(user);
+      if (!ok) {
+        throw new Error('Admin access required.');
+      }
+    } catch (err: any) {
+      setState({ user: null, loading: false, isAdmin: false, error: err?.message || 'Login failed.' });
+      throw err;
     }
   }, [checkAdmin, clearError]);
 

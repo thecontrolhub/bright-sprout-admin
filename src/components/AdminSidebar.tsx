@@ -20,7 +20,14 @@ const NAV: NavGroup[] = [
       { key: 'poolExplorer', label: 'Pool Explorer' },
     ],
   },
-  { title: 'Curriculum', collapsible: true, items: [{ key: 'curriculumMaths', label: 'Curriculum' }] },
+  {
+    title: 'Curriculum',
+    collapsible: true,
+    items: [
+      { key: 'curriculumMaths', label: 'Baseline' },
+      { key: 'curriculumLiteracy', label: 'Courses' },
+    ],
+  },
   {
     title: 'Users',
     collapsible: true,
