@@ -1,0 +1,29 @@
+{
+  "name": "bright-sprout-admin",
+  "private": true,
+  "main": "App.tsx",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "next dev --webpack",
+    "build": "next build",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "expo": "latest",
+    "firebase": "^12.9.0",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "react-native": "latest",
+    "react-native-web": "latest"
+  },
+  "devDependencies": {
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "@types/react-native": "latest",
+    "babel-preset-expo": "latest",
+    "typescript": "latest"
+  }
+}
