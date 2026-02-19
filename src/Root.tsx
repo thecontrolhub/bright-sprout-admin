@@ -12,6 +12,7 @@ import { CurriculumMathsScreen } from './screens/CurriculumMathsScreen';
 import { CurriculumLiteracyScreen } from './screens/CurriculumLiteracyScreen';
 import { CurriculumScienceScreen } from './screens/CurriculumScienceScreen';
 import { UsersParentScreen } from './screens/UsersParentScreen';
+import { ParentDetailScreen } from './screens/ParentDetailScreen';
 import { UsersChildrenScreen } from './screens/UsersChildrenScreen';
 import { UsersAdminScreen } from './screens/UsersAdminScreen';
 import { GameRegistryScreen } from './screens/GameRegistryScreen';
@@ -84,6 +85,13 @@ const ScreenRouter: React.FC = () => {
     return (
       <AdminLayout>
         <UsersParentScreen />
+      </AdminLayout>
+    );
+  }
+  if (screen === 'parentDetail') {
+    return (
+      <AdminLayout>
+        <ParentDetailScreen />
       </AdminLayout>
     );
   }

@@ -10,6 +10,7 @@ export type ScreenName =
   | 'curriculumLiteracy'
   | 'curriculumScience'
   | 'usersParent'
+  | 'parentDetail'
   | 'usersChildren'
   | 'usersAdmin'
   | 'gameRegistry'
