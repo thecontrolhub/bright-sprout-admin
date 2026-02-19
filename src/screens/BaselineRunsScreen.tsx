@@ -1,48 +1,118 @@
-﻿import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
+import { db } from '../firebase/firestore';
 
-const runs = [
-  { id: 'RUN-1209', subject: 'Maths', stage: 'Stage 3', status: 'Success', duration: '9m' },
-  { id: 'RUN-1208', subject: 'Science', stage: 'Stage 5', status: 'Failed', duration: '6m' },
-  { id: 'RUN-1207', subject: 'Literacy', stage: 'Stage 1', status: 'Partial', duration: '11m' },
-  { id: 'RUN-1206', subject: 'Maths', stage: 'Stage 6', status: 'Success', duration: '8m' },
-];
+type RunRow = {
+  id: string;
+  subject: string;
+  stageId: string;
+  status: string;
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+  counts?: { skills?: number; templates?: number; sampleItems?: number };
+};
 
-export const BaselineRunsScreen: React.FC = () => (
-  <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Text style={styles.title}>Active Runs</Text>
-    <Text style={styles.subtitle}>Monitor baseline generation status, outputs, and errors.</Text>
+const toDateSafe = (value: any): Date | null => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value?.toDate === 'function') return value.toDate();
+  return null;
+};
 
-    <View style={styles.card}>
-      <View style={styles.tableHeader}>
-        <Text style={styles.tableHeaderText}>Run</Text>
-        <Text style={styles.tableHeaderText}>Subject</Text>
-        <Text style={styles.tableHeaderText}>Stage</Text>
-        <Text style={styles.tableHeaderText}>Status</Text>
-        <Text style={styles.tableHeaderText}>Duration</Text>
-      </View>
-      {runs.map((run) => (
-        <View key={run.id} style={styles.tableRow}>
-          <Text style={styles.tableCell}>{run.id}</Text>
-          <Text style={styles.tableCell}>{run.subject}</Text>
-          <Text style={styles.tableCell}>{run.stage}</Text>
-          <Text style={styles.tableCell}>{run.status}</Text>
-          <Text style={styles.tableCell}>{run.duration}</Text>
+const formatDate = (date?: Date | null) => {
+  if (!date) return '—';
+  return date.toLocaleString();
+};
+
+const formatDuration = (start?: Date | null, end?: Date | null) => {
+  if (!start || !end) return '—';
+  const ms = Math.max(0, end.getTime() - start.getTime());
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.floor((ms % 60000) / 1000);
+  if (mins > 0) return `${mins}m ${secs}s`;
+  return `${secs}s`;
+};
+
+export const BaselineRunsScreen: React.FC = () => {
+  const [runs, setRuns] = React.useState<RunRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const runsQuery = query(collection(db, 'baselineGenerationRuns'), orderBy('finishedAt', 'desc'));
+    const unsub = onSnapshot(runsQuery, (snap) => {
+      const rows: RunRow[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        rows.push({
+          id: docSnap.id,
+          subject: data.subject,
+          stageId: data.stageId,
+          status: data.status,
+          startedAt: toDateSafe(data.startedAt),
+          finishedAt: toDateSafe(data.finishedAt),
+          counts: data.counts,
+        });
+      });
+      setRuns(rows);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={styles.title}>Active Runs</Text>
+      <Text style={styles.subtitle}>Monitor baseline generation status and outputs.</Text>
+
+      <View style={styles.card}>
+        <View style={styles.tableHeader}>
+          <Text style={styles.tableHeaderText}>Run</Text>
+          <Text style={styles.tableHeaderText}>Subject</Text>
+          <Text style={styles.tableHeaderText}>Stage</Text>
+          <Text style={styles.tableHeaderText}>Status</Text>
+          <Text style={styles.tableHeaderText}>Duration</Text>
         </View>
-      ))}
-    </View>
-
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Recent Errors</Text>
-      <Text style={styles.cardText}>Schema validation and rate-limit warnings appear here.</Text>
-      <View style={styles.alert}>
-        <Text style={styles.alertTitle}>Science Stage 5: poolSpec mismatch</Text>
-        <Text style={styles.alertText}>Template item schema failed validation for 3 items.</Text>
+        {loading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color="#fff" />
+          </View>
+        ) : runs.length === 0 ? (
+          <View style={styles.emptyRow}>
+            <Text style={styles.emptyText}>No runs yet.</Text>
+          </View>
+        ) : (
+          runs.map((run) => (
+            <View key={run.id} style={styles.tableRow}>
+              <Text style={styles.tableCell}>{run.id.slice(0, 8)}</Text>
+              <Text style={styles.tableCell}>{run.subject}</Text>
+              <Text style={styles.tableCell}>{run.stageId}</Text>
+              <Text style={styles.tableCell}>{run.status}</Text>
+              <Text style={styles.tableCell}>{formatDuration(run.startedAt, run.finishedAt)}</Text>
+            </View>
+          ))
+        )}
       </View>
-    </View>
-  </ScrollView>
-);
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Recent Runs</Text>
+        <Text style={styles.cardText}>Latest runs with output counts.</Text>
+        {runs.slice(0, 3).map((run) => (
+          <View key={`${run.id}-summary`} style={styles.summaryRow}>
+            <Text style={styles.summaryTitle}>
+              {run.subject} · {run.stageId}
+            </Text>
+            <Text style={styles.summaryText}>
+              Skills: {run.counts?.skills ?? 0} · Templates: {run.counts?.templates ?? 0} · Samples: {run.counts?.sampleItems ?? 0}
+            </Text>
+            <Text style={styles.summaryText}>Finished: {formatDate(run.finishedAt)}</Text>
+          </View>
+        ))}
+      </View>
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -60,10 +130,19 @@ const styles = StyleSheet.create({
   tableHeaderText: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700', flex: 1 },
   tableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
   tableCell: { color: '#fff', fontSize: 11, flex: 1 },
+  loadingRow: { paddingVertical: 16, alignItems: 'center' },
+  emptyRow: { paddingVertical: 16, alignItems: 'center' },
+  emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
   cardTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cardText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 6 },
-  alert: { marginTop: tokens.spacing.md, padding: tokens.spacing.md, borderRadius: tokens.radii.md, backgroundColor: 'rgba(255,120,120,0.15)', borderWidth: 1, borderColor: 'rgba(255,120,120,0.3)' },
-  alertTitle: { color: '#fff', fontSize: 12, fontWeight: '700' },
-  alertText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginTop: 4 },
+  summaryRow: {
+    marginTop: tokens.spacing.md,
+    padding: tokens.spacing.md,
+    borderRadius: tokens.radii.md,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  summaryTitle: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  summaryText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 4 },
 });
-

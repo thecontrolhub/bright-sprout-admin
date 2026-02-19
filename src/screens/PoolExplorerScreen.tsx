@@ -1,34 +1,78 @@
-﻿import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import { collectionGroup, onSnapshot, query } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
+import { db } from '../firebase/firestore';
 
-const pools = [
-  { skill: 'Counting 1-10', stage: 'Early Years', items: 180, coverage: '72%' },
-  { skill: 'CVC Builder', stage: 'Stage 1', items: 210, coverage: '84%' },
-  { skill: 'Habitats Match', stage: 'Stage 3', items: 96, coverage: '48%' },
-];
+type PoolRow = {
+  id: string;
+  skillId: string;
+  subject: string;
+  stageId: string;
+  templates: number;
+  counts?: { perDifficulty?: number };
+};
 
-export const PoolExplorerScreen: React.FC = () => (
-  <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Text style={styles.title}>Pool Explorer</Text>
-    <Text style={styles.subtitle}>Inspect template pools, coverage, and sample items.</Text>
+export const PoolExplorerScreen: React.FC = () => {
+  const [rows, setRows] = React.useState<PoolRow[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Filters</Text>
-      <Text style={styles.cardText}>Subject, stage, skill, and difficulty filters will appear here.</Text>
-    </View>
+  React.useEffect(() => {
+    const poolQuery = query(collectionGroup(db, 'skills'));
+    const unsub = onSnapshot(poolQuery, (snap) => {
+      const next: PoolRow[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data();
+        if (!data?.skillId) return;
+        next.push({
+          id: docSnap.id,
+          skillId: data.skillId,
+          subject: data.subject,
+          stageId: data.stageId,
+          templates: Array.isArray(data.templates) ? data.templates.length : 0,
+          counts: data.counts,
+        });
+      });
+      setRows(next);
+      setLoading(false);
+    });
+    return () => unsub();
+  }, []);
 
-    {pools.map((pool) => (
-      <View key={pool.skill} style={styles.card}>
-        <Text style={styles.cardTitle}>{pool.skill}</Text>
-        <Text style={styles.cardText}>{pool.stage} · {pool.items} items · {pool.coverage} coverage</Text>
-        <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: pool.coverage }] as any} />
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={styles.title}>Pool Explorer</Text>
+      <Text style={styles.subtitle}>Inspect template pools and skill coverage.</Text>
+
+      <View style={styles.card}>
+        <View style={styles.tableHeader}>
+          <Text style={styles.tableHeaderText}>Skill</Text>
+          <Text style={styles.tableHeaderText}>Subject</Text>
+          <Text style={styles.tableHeaderText}>Stage</Text>
+          <Text style={styles.tableHeaderText}>Templates</Text>
         </View>
+        {loading ? (
+          <View style={styles.loadingRow}>
+            <ActivityIndicator color="#fff" />
+          </View>
+        ) : rows.length === 0 ? (
+          <View style={styles.emptyRow}>
+            <Text style={styles.emptyText}>No pool specs found.</Text>
+          </View>
+        ) : (
+          rows.map((row) => (
+            <View key={`${row.subject}-${row.stageId}-${row.skillId}`} style={styles.tableRow}>
+              <Text style={styles.tableCell}>{row.skillId}</Text>
+              <Text style={styles.tableCell}>{row.subject}</Text>
+              <Text style={styles.tableCell}>{row.stageId}</Text>
+              <Text style={styles.tableCell}>{row.templates}</Text>
+            </View>
+          ))
+        )}
       </View>
-    ))}
-  </ScrollView>
-);
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -42,9 +86,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
   },
-  cardTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
-  cardText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 6 },
-  progressBar: { height: 8, borderRadius: tokens.radii.pill, backgroundColor: 'rgba(255,255,255,0.12)', marginTop: tokens.spacing.md, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: 'rgba(124,92,255,0.8)' },
+  tableHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  tableHeaderText: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700', flex: 1 },
+  tableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  tableCell: { color: '#fff', fontSize: 11, flex: 1 },
+  loadingRow: { paddingVertical: 16, alignItems: 'center' },
+  emptyRow: { paddingVertical: 16, alignItems: 'center' },
+  emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
 });
-

@@ -1,57 +1,185 @@
-﻿import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { tokens } from '../styles/tokens';
+import { generateCambridgeBaseline } from '../firebase/functions';
+import { useNavigation } from '../navigation/NavigationContext';
 
-export const BaselineGenerateScreen: React.FC = () => (
-  <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-    <Text style={styles.title}>Baseline Generator</Text>
-    <Text style={styles.subtitle}>Launch Cambridge-aligned baseline runs and review the generation plan.</Text>
+const SUBJECTS = [
+  { id: 'maths', label: 'Maths' },
+  { id: 'literacy', label: 'Literacy' },
+  { id: 'science', label: 'Science' },
+];
 
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Run Configuration</Text>
-      <Text style={styles.cardText}>Subject, stage, seed, and version selection will live here.</Text>
-      <View style={styles.formRow}>
-        <View style={styles.formField}>
-          <Text style={styles.formLabel}>Subject</Text>
-          <Text style={styles.formValue}>Maths / Literacy / Science</Text>
-        </View>
-        <View style={styles.formField}>
-          <Text style={styles.formLabel}>Stage</Text>
-          <Text style={styles.formValue}>Early Years, Stage 1-6</Text>
-        </View>
-      </View>
-      <View style={styles.formRow}>
-        <View style={styles.formField}>
-          <Text style={styles.formLabel}>Seed</Text>
-          <Text style={styles.formValue}>auto-generated</Text>
-        </View>
-        <View style={styles.formField}>
-          <Text style={styles.formLabel}>Version</Text>
-          <Text style={styles.formValue}>2026.02</Text>
-        </View>
-      </View>
-    </View>
+const STAGES = [
+  { id: 'early', label: 'Early Years' },
+  { id: 'stage1', label: 'Stage 1' },
+  { id: 'stage2', label: 'Stage 2' },
+  { id: 'stage3', label: 'Stage 3' },
+  { id: 'stage4', label: 'Stage 4' },
+  { id: 'stage5', label: 'Stage 5' },
+  { id: 'stage6', label: 'Stage 6' },
+];
 
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Generation Plan</Text>
-      <Text style={styles.cardText}>3-pass pipeline summary and expected output counts.</Text>
-      <View style={styles.listRow}>
-        <Text style={styles.listItem}>• Blueprint pass: 18 skills</Text>
-        <Text style={styles.listItem}>• Template pass: 42 templates</Text>
-        <Text style={styles.listItem}>• Sample items: 360 items</Text>
-      </View>
-    </View>
+export const BaselineGenerateScreen: React.FC = () => {
+  const { navigate } = useNavigation();
+  const [subject, setSubject] = React.useState('maths');
+  const [stageId, setStageId] = React.useState('early');
+  const [version, setVersion] = React.useState('2026.02');
+  const [seed, setSeed] = React.useState('');
+  const [devMode, setDevMode] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError] = React.useState('');
+  const [result, setResult] = React.useState<any>(null);
 
-    <View style={styles.card}>
-      <Text style={styles.cardTitle}>Run Controls</Text>
-      <Text style={styles.cardText}>Queue jobs, monitor rate limits, and save run metadata.</Text>
-      <View style={styles.statusRow}>
-        <View style={styles.statusChip}><Text style={styles.statusText}>Ready</Text></View>
-        <View style={styles.statusChip}><Text style={styles.statusText}>Admin Only</Text></View>
+  React.useEffect(() => {
+    const autoSeed = `${subject}:${stageId}:${version}`;
+    setSeed((prev) => (prev ? prev : autoSeed));
+  }, [subject, stageId, version]);
+
+  const handleGenerate = async () => {
+    setError('');
+    setResult(null);
+    setLoading(true);
+    try {
+      const res = await generateCambridgeBaseline({
+        subject,
+        stageId,
+        version,
+        seed: seed || `${subject}:${stageId}:${version}`,
+        devMode,
+      });
+      setResult(res?.data || res);
+    } catch (err: any) {
+      setError(err?.message || 'Generation failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <Text style={styles.title}>Baseline Generator</Text>
+      <Text style={styles.subtitle}>Launch Cambridge-aligned baseline runs and review outputs.</Text>
+
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Run Configuration</Text>
+        <Text style={styles.cardText}>Select subject + stage and trigger the generator.</Text>
+
+        <Text style={styles.formLabel}>Subject</Text>
+        <View style={styles.chipRow}>
+          {SUBJECTS.map((opt) => {
+            const active = subject === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                accessibilityRole="button"
+                onPress={() => setSubject(opt.id)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  active && styles.chipActive,
+                  pressed && styles.chipPressed,
+                ]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={styles.formLabel}>Stage</Text>
+        <View style={styles.chipRow}>
+          {STAGES.map((opt) => {
+            const active = stageId === opt.id;
+            return (
+              <Pressable
+                key={opt.id}
+                accessibilityRole="button"
+                onPress={() => setStageId(opt.id)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  active && styles.chipActive,
+                  pressed && styles.chipPressed,
+                ]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{opt.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <View style={styles.formRow}>
+          <View style={styles.formField}>
+            <Text style={styles.formLabel}>Version</Text>
+            <TextInput
+              value={version}
+              onChangeText={setVersion}
+              placeholder="2026.02"
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              style={styles.input}
+            />
+          </View>
+          <View style={styles.formField}>
+            <Text style={styles.formLabel}>Seed</Text>
+            <TextInput
+              value={seed}
+              onChangeText={setSeed}
+              placeholder={`${subject}:${stageId}:${version}`}
+              placeholderTextColor="rgba(255,255,255,0.4)"
+              style={styles.input}
+            />
+          </View>
+        </View>
+
+        <View style={styles.toggleRow}>
+          <Text style={styles.formLabel}>Dev mode (sample items)</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setDevMode((prev) => !prev)}
+            style={({ pressed }) => [
+              styles.toggle,
+              devMode && styles.toggleActive,
+              pressed && styles.chipPressed,
+            ]}
+          >
+            <Text style={styles.toggleText}>{devMode ? 'On' : 'Off'}</Text>
+          </Pressable>
+        </View>
+
+        {error ? <Text style={styles.errorText}>{error}</Text> : null}
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={handleGenerate}
+          disabled={loading}
+          style={({ pressed }) => [
+            styles.primaryButton,
+            pressed && styles.primaryButtonPressed,
+            loading && styles.primaryButtonDisabled,
+          ]}
+        >
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Generate</Text>}
+        </Pressable>
       </View>
-    </View>
-  </ScrollView>
-);
+
+      {result ? (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Run Result</Text>
+          <Text style={styles.cardText}>Status: {result.status || 'unknown'}</Text>
+          <Text style={styles.cardText}>
+            Skills: {result.counts?.skills ?? 0} · Templates: {result.counts?.templates ?? 0} · Samples: {result.counts?.sampleItems ?? 0}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => navigate('baselineRuns')}
+            style={({ pressed }) => [styles.linkButton, pressed && styles.primaryButtonPressed]}
+          >
+            <Text style={styles.linkText}>View runs</Text>
+          </Pressable>
+        </View>
+      ) : null}
+    </ScrollView>
+  );
+};
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
@@ -67,21 +195,65 @@ const styles = StyleSheet.create({
   },
   cardTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cardText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 6 },
-  formRow: { flexDirection: 'row', gap: tokens.spacing.lg, marginTop: tokens.spacing.lg, flexWrap: 'wrap' },
-  formField: { flex: 1, minWidth: 160 },
-  formLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, textTransform: 'uppercase' },
-  formValue: { color: '#fff', fontSize: 12, fontWeight: '600', marginTop: 6 },
-  listRow: { marginTop: tokens.spacing.md },
-  listItem: { color: 'rgba(255,255,255,0.7)', fontSize: 11, marginBottom: 6 },
-  statusRow: { flexDirection: 'row', gap: 10, marginTop: tokens.spacing.md },
-  statusChip: {
+  formLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, textTransform: 'uppercase', marginTop: 12 },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
+  chip: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    borderRadius: tokens.radii.pill,
-    backgroundColor: 'rgba(124,92,255,0.2)',
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: 'rgba(124,92,255,0.4)',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
-  statusText: { color: '#d7ccff', fontSize: 10, fontWeight: '700' },
+  chipActive: {
+    borderColor: 'rgba(124,92,255,0.6)',
+    backgroundColor: 'rgba(124,92,255,0.2)',
+  },
+  chipPressed: { transform: [{ scale: 0.98 }] },
+  chipText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  chipTextActive: { color: '#fff', fontWeight: '800' },
+  formRow: { flexDirection: 'row', gap: tokens.spacing.lg, marginTop: tokens.spacing.md, flexWrap: 'wrap' },
+  formField: { flex: 1, minWidth: 160 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    marginTop: 6,
+  },
+  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
+  toggle: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  toggleActive: { borderColor: 'rgba(124,92,255,0.6)', backgroundColor: 'rgba(124,92,255,0.2)' },
+  toggleText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  primaryButton: {
+    marginTop: 18,
+    backgroundColor: 'rgba(124,92,255,0.35)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(124,92,255,0.55)',
+  },
+  primaryButtonPressed: { transform: [{ scale: 0.98 }] },
+  primaryButtonDisabled: { opacity: 0.6 },
+  primaryButtonText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  linkButton: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  linkText: { color: '#d6ccff', fontSize: 11, fontWeight: '700' },
+  errorText: { color: '#ffb4b4', fontSize: 11, marginTop: 10 },
 });
-
