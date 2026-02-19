@@ -12,11 +12,13 @@ export type ScreenName =
   | 'usersParent'
   | 'parentDetail'
   | 'usersChildren'
+  | 'childDetail'
   | 'usersAdmin'
   | 'gameRegistry'
   | 'analytics'
   | 'commonSubjects'
   | 'commonGrades'
+  | 'commonRoles'
   | 'helpCenter';
 
 export type NavigationParams = Record<string, string | undefined>;

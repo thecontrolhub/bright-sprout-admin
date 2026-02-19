@@ -1,20 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal, TextInput } from 'react-native';
-import { arrayUnion, doc, getDoc, onSnapshot, setDoc, updateDoc } from 'firebase/firestore';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, Modal, ActivityIndicator } from 'react-native';
+import { arrayUnion, doc, getDoc, onSnapshot, updateDoc } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
 import { db } from '../firebase/firestore';
 
-type SubjectItem = { label: string; subjectId?: string };
-
-export const CommonSubjectsScreen: React.FC = () => {
-  const [subjects, setSubjects] = React.useState<SubjectItem[]>([]);
+export const CommonRolesScreen: React.FC = () => {
+  const [roles, setRoles] = React.useState<string[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [addOpen, setAddOpen] = React.useState(false);
+  const [modalOpen, setModalOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [roleName, setRoleName] = React.useState('');
+  const [editRole, setEditRole] = React.useState('');
   const [removeOpen, setRemoveOpen] = React.useState(false);
-  const [activeItem, setActiveItem] = React.useState('');
-  const [value, setValue] = React.useState('');
-  const [subjectId, setSubjectId] = React.useState('');
+  const [removeRole, setRemoveRole] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
 
@@ -22,103 +20,78 @@ export const CommonSubjectsScreen: React.FC = () => {
     const ref = doc(db, 'config', 'app');
     const unsub = onSnapshot(ref, (snap) => {
       const data = snap.data();
-      const raw = Array.isArray(data?.subjects) ? data.subjects : [];
-      const normalized: SubjectItem[] = raw.map((entry: any) => {
-        if (typeof entry === 'string') return { label: entry };
-        return { label: entry?.label || entry?.name || 'Subject', subjectId: entry?.subjectId || entry?.id || '' };
-      });
-      setSubjects(normalized);
+      setRoles(Array.isArray(data?.roles) ? data.roles : []);
       setLoading(false);
     });
     return () => unsub();
   }, []);
 
-  const handleAdd = async () => {
+  const handleAddRole = async () => {
     setError('');
-    const trimmed = value.trim();
+    const trimmed = roleName.trim();
     if (!trimmed) {
-      setError('Subject name is required.');
+      setError('Role name is required.');
       return;
     }
     setSaving(true);
     try {
       const ref = doc(db, 'config', 'app');
       const snap = await getDoc(ref);
-      const nextItem: SubjectItem = { label: trimmed, subjectId: subjectId.trim() || '' };
       if (!snap.exists()) {
-        await setDoc(ref, { subjects: [nextItem], subjectsList: [trimmed] }, { merge: true });
+        await updateDoc(ref, { roles: [trimmed] });
       } else {
-        const current = Array.isArray(snap.data()?.subjects) ? snap.data()?.subjects : [];
-        await updateDoc(ref, {
-          subjects: arrayUnion(nextItem),
-          subjectsList: current.map((s: any) => (typeof s === 'string' ? s : s?.label)).filter(Boolean).concat(trimmed),
-        });
+        await updateDoc(ref, { roles: arrayUnion(trimmed) });
       }
-      setValue('');
-      setSubjectId('');
-      setAddOpen(false);
+      setRoleName('');
+      setModalOpen(false);
     } catch (err: any) {
-      setError(err?.message || 'Unable to add subject.');
+      setError(err?.message || 'Unable to add role.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleEdit = async () => {
+  const handleEditRole = async () => {
     setError('');
-    const trimmed = value.trim();
-    if (!trimmed || !activeItem) {
-      setError('Subject name is required.');
+    const trimmed = roleName.trim();
+    if (!trimmed || !editRole) {
+      setError('Role name is required.');
       return;
     }
     setSaving(true);
     try {
       const ref = doc(db, 'config', 'app');
       const snap = await getDoc(ref);
-      const current = Array.isArray(snap.data()?.subjects) ? snap.data()?.subjects : [];
-      const updated = current.map((item: any) => {
-        const label = typeof item === 'string' ? item : item?.label || item?.name;
-        if (label !== activeItem) return item;
-        return { label: trimmed, subjectId: subjectId.trim() || '' };
-      });
-      await updateDoc(ref, {
-        subjects: updated,
-        subjectsList: updated.map((s: any) => (typeof s === 'string' ? s : s?.label)).filter(Boolean),
-      });
-      setValue('');
-      setSubjectId('');
-      setActiveItem('');
+      const current = Array.isArray(snap.data()?.roles) ? snap.data()?.roles : [];
+      const updated = current.map((role: string) => (role === editRole ? trimmed : role));
+      await updateDoc(ref, { roles: updated });
+      setRoleName('');
+      setEditRole('');
       setEditOpen(false);
     } catch (err: any) {
-      setError(err?.message || 'Unable to update subject.');
+      setError(err?.message || 'Unable to update role.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleRemove = async () => {
+  const handleRemoveRole = async () => {
     setError('');
-    if (!activeItem) {
-      setError('Subject name is required.');
+    if (!removeRole) {
+      setError('Role name is required.');
       return;
     }
     setSaving(true);
     try {
       const ref = doc(db, 'config', 'app');
       const snap = await getDoc(ref);
-      const current = Array.isArray(snap.data()?.subjects) ? snap.data()?.subjects : [];
-      const updated = current.filter((item: any) => {
-        const label = typeof item === 'string' ? item : item?.label || item?.name;
-        return label !== activeItem;
-      });
-      await updateDoc(ref, {
-        subjects: updated,
-        subjectsList: updated.map((s: any) => (typeof s === 'string' ? s : s?.label)).filter(Boolean),
-      });
-      setActiveItem('');
+      const current = Array.isArray(snap.data()?.roles) ? snap.data()?.roles : [];
+      const updated = current.filter((role: string) => role !== removeRole);
+      await updateDoc(ref, { roles: updated });
+      setRemoveRole('');
       setRemoveOpen(false);
     } catch (err: any) {
-      setError(err?.message || 'Unable to remove subject.');
+      setError(err?.message || 'Unable to remove role.');
     } finally {
       setSaving(false);
     }
@@ -128,46 +101,43 @@ export const CommonSubjectsScreen: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.title}>Common Data - Subjects</Text>
-          <Text style={styles.subtitle}>Manage subjects used across baselines and analytics.</Text>
+          <Text style={styles.title}>Common Data · Roles</Text>
+          <Text style={styles.subtitle}>Manage admin role labels used across the platform.</Text>
         </View>
         <Pressable
           accessibilityRole="button"
-          onPress={() => setAddOpen(true)}
+          onPress={() => setModalOpen(true)}
           style={({ pressed }) => [styles.primaryButton, pressed && styles.primaryButtonPressed]}
         >
-          <Text style={styles.primaryButtonText}>Add subject</Text>
+          <Text style={styles.primaryButtonText}>Add role</Text>
         </Pressable>
       </View>
 
       <View style={styles.card}>
         <View style={styles.tableHeader}>
-          <Text style={styles.tableHeaderText}>Subject</Text>
-          <Text style={styles.tableHeaderText}>Subject ID</Text>
-          <Text style={styles.tableHeaderText}>Status</Text>
+          <Text style={styles.tableHeaderText}>Role</Text>
+          <Text style={styles.tableHeaderText}>Description</Text>
           <Text style={[styles.tableHeaderText, styles.actionHeader]}>Actions</Text>
         </View>
         {loading ? (
           <View style={styles.loadingRow}>
             <ActivityIndicator color="#fff" />
           </View>
-        ) : subjects.length === 0 ? (
+        ) : roles.length === 0 ? (
           <View style={styles.emptyRow}>
-            <Text style={styles.emptyText}>No subjects configured yet.</Text>
+            <Text style={styles.emptyText}>No roles configured yet.</Text>
           </View>
         ) : (
-          subjects.map((subject) => (
-            <View key={subject.label} style={styles.tableRow}>
-              <Text style={styles.tableCell}>{subject.label}</Text>
-              <Text style={styles.tableCell}>{subject.subjectId || '—'}</Text>
-              <Text style={styles.tableCell}>Active</Text>
+          roles.map((role) => (
+            <View key={role} style={styles.tableRow}>
+              <Text style={styles.tableCell}>{role}</Text>
+              <Text style={styles.tableCell}>Admin permission label</Text>
               <View style={styles.actionCellWrap}>
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    setActiveItem(subject.label);
-                    setValue(subject.label);
-                    setSubjectId(subject.subjectId || '');
+                    setEditRole(role);
+                    setRoleName(role);
                     setEditOpen(true);
                     setError('');
                   }}
@@ -178,7 +148,7 @@ export const CommonSubjectsScreen: React.FC = () => {
                 <Pressable
                   accessibilityRole="button"
                   onPress={() => {
-                    setActiveItem(subject.label);
+                    setRemoveRole(role);
                     setRemoveOpen(true);
                     setError('');
                   }}
@@ -192,23 +162,15 @@ export const CommonSubjectsScreen: React.FC = () => {
         )}
       </View>
 
-      <Modal visible={addOpen} transparent animationType="fade">
+      <Modal visible={modalOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Add Subject</Text>
-            <Text style={styles.modalLabel}>Subject name</Text>
+            <Text style={styles.modalTitle}>Add Admin Role</Text>
+            <Text style={styles.modalLabel}>Role name</Text>
             <TextInput
-              value={value}
-              onChangeText={setValue}
-              placeholder="e.g. Maths"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              style={styles.modalInput}
-            />
-            <Text style={styles.modalLabel}>Subject ID</Text>
-            <TextInput
-              value={subjectId}
-              onChangeText={setSubjectId}
-              placeholder="e.g. maths"
+              value={roleName}
+              onChangeText={setRoleName}
+              placeholder="e.g. Content Lead"
               placeholderTextColor="rgba(255,255,255,0.4)"
               style={styles.modalInput}
             />
@@ -217,10 +179,9 @@ export const CommonSubjectsScreen: React.FC = () => {
               <Pressable
                 accessibilityRole="button"
                 onPress={() => {
-                  setAddOpen(false);
-                  setValue('');
-                  setSubjectId('');
+                  setModalOpen(false);
                   setError('');
+                  setRoleName('');
                 }}
                 style={({ pressed }) => [styles.modalButton, pressed && styles.primaryButtonPressed]}
               >
@@ -228,7 +189,7 @@ export const CommonSubjectsScreen: React.FC = () => {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                onPress={handleAdd}
+                onPress={handleAddRole}
                 disabled={saving}
                 style={({ pressed }) => [
                   styles.modalButton,
@@ -247,20 +208,12 @@ export const CommonSubjectsScreen: React.FC = () => {
       <Modal visible={editOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Update Subject</Text>
-            <Text style={styles.modalLabel}>Subject name</Text>
+            <Text style={styles.modalTitle}>Update Role</Text>
+            <Text style={styles.modalLabel}>Role name</Text>
             <TextInput
-              value={value}
-              onChangeText={setValue}
-              placeholder="e.g. Maths"
-              placeholderTextColor="rgba(255,255,255,0.4)"
-              style={styles.modalInput}
-            />
-            <Text style={styles.modalLabel}>Subject ID</Text>
-            <TextInput
-              value={subjectId}
-              onChangeText={setSubjectId}
-              placeholder="e.g. maths"
+              value={roleName}
+              onChangeText={setRoleName}
+              placeholder="e.g. Content Lead"
               placeholderTextColor="rgba(255,255,255,0.4)"
               style={styles.modalInput}
             />
@@ -270,10 +223,9 @@ export const CommonSubjectsScreen: React.FC = () => {
                 accessibilityRole="button"
                 onPress={() => {
                   setEditOpen(false);
-                  setValue('');
-                  setSubjectId('');
-                  setActiveItem('');
                   setError('');
+                  setRoleName('');
+                  setEditRole('');
                 }}
                 style={({ pressed }) => [styles.modalButton, pressed && styles.primaryButtonPressed]}
               >
@@ -281,7 +233,7 @@ export const CommonSubjectsScreen: React.FC = () => {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                onPress={handleEdit}
+                onPress={handleEditRole}
                 disabled={saving}
                 style={({ pressed }) => [
                   styles.modalButton,
@@ -300,16 +252,18 @@ export const CommonSubjectsScreen: React.FC = () => {
       <Modal visible={removeOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Remove Subject</Text>
-            <Text style={styles.modalSubtitle}>This will remove "{activeItem}" from Common Data.</Text>
+            <Text style={styles.modalTitle}>Remove Role</Text>
+            <Text style={styles.modalSubtitle}>
+              This will remove the role "{removeRole}" from Common Data.
+            </Text>
             {error ? <Text style={styles.errorText}>{error}</Text> : null}
             <View style={styles.modalActions}>
               <Pressable
                 accessibilityRole="button"
                 onPress={() => {
                   setRemoveOpen(false);
-                  setActiveItem('');
                   setError('');
+                  setRemoveRole('');
                 }}
                 style={({ pressed }) => [styles.modalButton, pressed && styles.primaryButtonPressed]}
               >
@@ -317,7 +271,7 @@ export const CommonSubjectsScreen: React.FC = () => {
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                onPress={handleRemove}
+                onPress={handleRemoveRole}
                 disabled={saving}
                 style={({ pressed }) => [
                   styles.modalButton,
@@ -391,11 +345,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 11,
   },
-  removeButton: { marginTop: 2 },
-  removeButtonText: { color: '#ffb4b4' },
   loadingRow: { paddingVertical: 16, alignItems: 'center' },
   emptyRow: { paddingVertical: 16, alignItems: 'center' },
   emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  editButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  editButtonText: {
+    color: '#d6ccff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  removeButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(255,120,120,0.45)',
+    backgroundColor: 'rgba(255,120,120,0.12)',
+  },
+  removeButtonText: {
+    color: '#ffb4b4',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

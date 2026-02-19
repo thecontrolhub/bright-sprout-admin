@@ -43,6 +43,7 @@ const NAV: NavGroup[] = [
     items: [
       { key: 'commonSubjects', label: 'Subjects' },
       { key: 'commonGrades', label: 'Grades' },
+      { key: 'commonRoles', label: 'Roles' },
     ],
   },
   { title: 'Game Registry', collapsible: true, items: [{ key: 'gameRegistry', label: 'Game Registry' }] },

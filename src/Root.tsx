@@ -14,11 +14,13 @@ import { CurriculumScienceScreen } from './screens/CurriculumScienceScreen';
 import { UsersParentScreen } from './screens/UsersParentScreen';
 import { ParentDetailScreen } from './screens/ParentDetailScreen';
 import { UsersChildrenScreen } from './screens/UsersChildrenScreen';
+import { ChildDetailScreen } from './screens/ChildDetailScreen';
 import { UsersAdminScreen } from './screens/UsersAdminScreen';
 import { GameRegistryScreen } from './screens/GameRegistryScreen';
 import { AnalyticsScreen } from './screens/AnalyticsScreen';
 import { CommonSubjectsScreen } from './screens/CommonSubjectsScreen';
 import { CommonGradesScreen } from './screens/CommonGradesScreen';
+import { CommonRolesScreen } from './screens/CommonRolesScreen';
 import { HelpCenterScreen } from './screens/HelpCenterScreen';
 import { AdminLayout } from './components/AdminLayout';
 import { AdminAuthProvider, useAdminAuth } from './auth/AdminAuthContext';
@@ -102,6 +104,13 @@ const ScreenRouter: React.FC = () => {
       </AdminLayout>
     );
   }
+  if (screen === 'childDetail') {
+    return (
+      <AdminLayout>
+        <ChildDetailScreen />
+      </AdminLayout>
+    );
+  }
   if (screen === 'usersAdmin') {
     return (
       <AdminLayout>
@@ -134,6 +143,13 @@ const ScreenRouter: React.FC = () => {
     return (
       <AdminLayout>
         <CommonGradesScreen />
+      </AdminLayout>
+    );
+  }
+  if (screen === 'commonRoles') {
+    return (
+      <AdminLayout>
+        <CommonRolesScreen />
       </AdminLayout>
     );
   }

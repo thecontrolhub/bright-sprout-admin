@@ -59,6 +59,7 @@ export const UsersParentScreen: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [filterOpen, setFilterOpen] = React.useState(false);
   const [queryText, setQueryText] = React.useState('');
+  const [searchField, setSearchField] = React.useState<'email' | 'username' | 'name'>('email');
   const [statusFilter, setStatusFilter] = React.useState<'all' | 'active' | 'risk' | 'churn'>('all');
   const [page, setPage] = React.useState(0);
   const [hasNext, setHasNext] = React.useState(false);
@@ -72,6 +73,17 @@ export const UsersParentScreen: React.FC = () => {
     const sevenDaysAgo = Timestamp.fromMillis(now.toMillis() - 7 * 24 * 60 * 60 * 1000);
 
     const baseFilters: any[] = [where('role', '==', 'parent')];
+
+    if (queryText.trim()) {
+      const term = queryText.trim().toLowerCase();
+      if (searchField === 'email') {
+        baseFilters.push(where('email', '==', term));
+      } else if (searchField === 'username') {
+        baseFilters.push(where('username', '==', term));
+      } else {
+        baseFilters.push(where('displayNameLower', 'array-contains', term));
+      }
+    }
 
     if (statusFilter === 'active') {
       baseFilters.push(where('lastActiveAt', '>=', threeDaysAgo));
@@ -164,16 +176,13 @@ export const UsersParentScreen: React.FC = () => {
       cursorRef.current[pageIndex + 1] = lastDoc;
     }
     setLoading(false);
-  }, [statusFilter]);
+  }, [statusFilter, queryText, searchField]);
 
   React.useEffect(() => {
     fetchPage(page);
   }, [fetchPage, page]);
 
-  const filteredParents = parents.filter((parent) => {
-    if (!queryText.trim()) return true;
-    return parent.name.toLowerCase().includes(queryText.trim().toLowerCase());
-  });
+  const filteredParents = parents;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -291,6 +300,27 @@ export const UsersParentScreen: React.FC = () => {
               placeholderTextColor="rgba(255,255,255,0.4)"
               style={styles.modalInput}
             />
+            <Text style={styles.modalLabel}>Search Field</Text>
+            <View style={styles.modalOptions}>
+              {[
+                { key: 'email', label: 'Email' },
+                { key: 'username', label: 'Username' },
+                { key: 'name', label: 'Name' },
+              ].map((opt) => (
+                <Pressable
+                  key={opt.key}
+                  accessibilityRole="button"
+                  onPress={() => setSearchField(opt.key as any)}
+                  style={({ pressed }) => [
+                    styles.modalOption,
+                    searchField === opt.key && styles.modalOptionActive,
+                    pressed && styles.filterButtonPressed,
+                  ]}
+                >
+                  <Text style={styles.modalOptionText}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
 
             <Text style={styles.modalLabel}>Status</Text>
             <View style={styles.modalOptions}>
@@ -321,6 +351,7 @@ export const UsersParentScreen: React.FC = () => {
                 onPress={() => {
                   setQueryText('');
                   setStatusFilter('all');
+                  setSearchField('email');
                 }}
                 style={({ pressed }) => [styles.modalButton, pressed && styles.filterButtonPressed]}
               >

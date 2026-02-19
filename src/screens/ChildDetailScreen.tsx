@@ -1,18 +1,11 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable, Modal } from 'react-native';
-import { doc, onSnapshot, collection, query, where, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
 import { db } from '../firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
 
-type ChildRow = {
-  id: string;
-  name: string;
-  grade?: string;
-  lastActiveAt?: Date | null;
-};
-
-type TabKey = 'details' | 'address' | 'banking' | 'profile' | 'settings' | 'children';
+type TabKey = 'details' | 'account' | 'settings' | 'parent';
 
 const toDateSafe = (value: any): Date | null => {
   if (!value) return null;
@@ -30,48 +23,52 @@ const formatLastActive = (date?: Date | null) => {
   return `${diffDays} days`;
 };
 
-export const ParentDetailScreen: React.FC = () => {
+export const ChildDetailScreen: React.FC = () => {
   const { params } = useNavigation();
-  const parentId = params.id;
+  const childId = params.id;
+  const [child, setChild] = React.useState<any | null>(null);
   const [parent, setParent] = React.useState<any | null>(null);
-  const [children, setChildren] = React.useState<ChildRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [confirmType, setConfirmType] = React.useState<'block' | 'remove'>('block');
   const [activeTab, setActiveTab] = React.useState<TabKey>('details');
 
   React.useEffect(() => {
-    if (!parentId) return;
-    const parentRef = doc(db, 'users', parentId);
-    const unsubParent = onSnapshot(parentRef, (snap) => {
-      setParent(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+    if (!childId) return;
+    const childRef = doc(db, 'users', childId);
+    let parentUnsub: (() => void) | null = null;
+    const unsubChild = onSnapshot(childRef, (snap) => {
+      const data = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+      setChild(data);
       setLoading(false);
-    });
-    const childQuery = query(collection(db, 'users'), where('role', '==', 'child'), where('parentUid', '==', parentId));
-    const unsubChildren = onSnapshot(childQuery, (snap) => {
-      const rows: ChildRow[] = [];
-      snap.forEach((d) => {
-        const data = d.data();
-        const name = [data.firstName, data.lastName].filter(Boolean).join(' ') || data.displayName || 'Child';
-        rows.push({
-          id: d.id,
-          name,
-          grade: data.grade,
-          lastActiveAt: toDateSafe(data.lastActiveAt) || toDateSafe(data.updatedAt) || toDateSafe(data.createdAt),
-        });
+      const parentId = data?.parentUid || data?.parentId;
+      if (!parentId) {
+        if (parentUnsub) {
+          parentUnsub();
+          parentUnsub = null;
+        }
+        setParent(null);
+        return;
+      }
+      const parentRef = doc(db, 'users', parentId);
+      if (parentUnsub) {
+        parentUnsub();
+      }
+      parentUnsub = onSnapshot(parentRef, (parentSnap) => {
+        setParent(parentSnap.exists() ? { id: parentSnap.id, ...parentSnap.data() } : null);
       });
-      setChildren(rows);
     });
-    return () => {
-      unsubParent();
-      unsubChildren();
-    };
-  }, [parentId]);
 
-  if (!parentId) {
+    return () => {
+      if (parentUnsub) parentUnsub();
+      unsubChild();
+    };
+  }, [childId]);
+
+  if (!childId) {
     return (
       <View style={styles.center}>
-        <Text style={styles.subtitle}>No parent selected.</Text>
+        <Text style={styles.subtitle}>No child selected.</Text>
       </View>
     );
   }
@@ -80,44 +77,40 @@ export const ParentDetailScreen: React.FC = () => {
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.headerRow}>
         <View>
-          <Text style={styles.title}>Parent Profile</Text>
-          <Text style={styles.subtitle}>Manage parent details and linked children.</Text>
+          <Text style={styles.title}>Child Profile</Text>
+          <Text style={styles.subtitle}>Manage child account, settings, and parent link.</Text>
         </View>
-        {parentId ? (
-          <View style={styles.headerActions}>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setConfirmType('block');
-                setConfirmOpen(true);
-              }}
-              style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
-            >
-              <Text style={styles.actionBtnText}>Block</Text>
-            </Pressable>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setConfirmType('remove');
-                setConfirmOpen(true);
-              }}
-              style={({ pressed }) => [styles.actionBtn, styles.removeBtn, pressed && styles.actionBtnPressed]}
-            >
-              <Text style={styles.removeBtnText}>Remove</Text>
-            </Pressable>
-          </View>
-        ) : null}
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setConfirmType('block');
+              setConfirmOpen(true);
+            }}
+            style={({ pressed }) => [styles.actionBtn, pressed && styles.actionBtnPressed]}
+          >
+            <Text style={styles.actionBtnText}>Block</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setConfirmType('remove');
+              setConfirmOpen(true);
+            }}
+            style={({ pressed }) => [styles.actionBtn, styles.removeBtn, pressed && styles.actionBtnPressed]}
+          >
+            <Text style={styles.removeBtnText}>Remove</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View style={styles.tabsRow}>
         {(
           [
             { key: 'details', label: 'Details' },
-            { key: 'address', label: 'Address' },
-            { key: 'banking', label: 'Banking' },
-            { key: 'profile', label: 'Profile' },
+            { key: 'account', label: 'Account' },
             { key: 'settings', label: 'App Settings' },
-            { key: 'children', label: 'Children' },
+            { key: 'parent', label: 'Parent' },
           ] as Array<{ key: TabKey; label: string }>
         ).map((tab) => {
           const active = activeTab === tab.key;
@@ -138,7 +131,7 @@ export const ParentDetailScreen: React.FC = () => {
         <View style={styles.center}>
           <ActivityIndicator color="#fff" />
         </View>
-      ) : parent ? (
+      ) : child ? (
         <>
           {activeTab === 'details' ? (
             <View style={styles.card}>
@@ -146,92 +139,36 @@ export const ParentDetailScreen: React.FC = () => {
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Name</Text>
                 <Text style={styles.infoValue}>
-                  {[parent.firstName, parent.lastName].filter(Boolean).join(' ') || parent.displayName || '—'}
+                  {[child.firstName, child.lastName].filter(Boolean).join(' ') || child.displayName || '—'}
                 </Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email</Text>
-                <Text style={styles.infoValue}>{parent.email || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Phone</Text>
-                <Text style={styles.infoValue}>{parent.phone || parent.phoneNumber || '—'}</Text>
+                <Text style={styles.infoLabel}>Grade</Text>
+                <Text style={styles.infoValue}>{child.grade || '—'}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Role</Text>
-                <Text style={styles.infoValue}>{parent.role || 'parent'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Billing Plan</Text>
-                <Text style={styles.infoValue}>{parent.billing?.plan || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Billing Status</Text>
-                <Text style={styles.infoValue}>{parent.billing?.status || '—'}</Text>
+                <Text style={styles.infoValue}>{child.role || 'child'}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Last Active</Text>
                 <Text style={styles.infoValue}>
-                  {formatLastActive(toDateSafe(parent.lastActiveAt) || toDateSafe(parent.updatedAt))}
+                  {formatLastActive(toDateSafe(child.lastActiveAt) || toDateSafe(child.updatedAt))}
                 </Text>
               </View>
             </View>
           ) : null}
 
-          {activeTab === 'address' ? (
+          {activeTab === 'account' ? (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Address</Text>
+              <Text style={styles.cardTitle}>Account</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Street</Text>
-                <Text style={styles.infoValue}>{parent.address?.street || '—'}</Text>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{child.email || '—'}</Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>City</Text>
-                <Text style={styles.infoValue}>{parent.address?.city || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>State</Text>
-                <Text style={styles.infoValue}>{parent.address?.state || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Postal Code</Text>
-                <Text style={styles.infoValue}>{parent.address?.postalCode || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Country</Text>
-                <Text style={styles.infoValue}>{parent.address?.country || '—'}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {activeTab === 'banking' ? (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Banking</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Account Name</Text>
-                <Text style={styles.infoValue}>{parent.banking?.accountName || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Account Number</Text>
-                <Text style={styles.infoValue}>{parent.banking?.accountNumber || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Bank</Text>
-                <Text style={styles.infoValue}>{parent.banking?.bankName || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Routing</Text>
-                <Text style={styles.infoValue}>{parent.banking?.routingNumber || '—'}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          {activeTab === 'profile' ? (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Profile</Text>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Photo</Text>
-                <Text style={styles.infoValue}>{parent.photoUrl ? 'Uploaded' : '—'}</Text>
+                <Text style={styles.infoLabel}>Username</Text>
+                <Text style={styles.infoValue}>{child.username || '—'}</Text>
               </View>
             </View>
           ) : null}
@@ -240,55 +177,56 @@ export const ParentDetailScreen: React.FC = () => {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>App Settings</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Push Notifications</Text>
-                <Text style={styles.infoValue}>{parent.settings?.pushNotifications ? 'On' : 'Off'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Email Summaries</Text>
-                <Text style={styles.infoValue}>{parent.settings?.emailSummaries ? 'On' : 'Off'}</Text>
-              </View>
-              <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Sounds</Text>
-                <Text style={styles.infoValue}>{parent.settings?.sounds ? 'On' : 'Off'}</Text>
+                <Text style={styles.infoValue}>{child.settings?.sounds ? 'On' : 'Off'}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Reduced Motion</Text>
-                <Text style={styles.infoValue}>{parent.settings?.reducedMotion ? 'On' : 'Off'}</Text>
+                <Text style={styles.infoValue}>{child.settings?.reducedMotion ? 'On' : 'Off'}</Text>
               </View>
             </View>
           ) : null}
 
-          {activeTab === 'children' ? (
+          {activeTab === 'parent' ? (
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Children</Text>
-              {children.length === 0 ? (
-                <Text style={styles.emptyText}>No linked children found.</Text>
-              ) : (
-                children.map((child) => (
-                  <View key={child.id} style={styles.tableRow}>
-                    <Text style={styles.tableCell}>{child.name}</Text>
-                    <Text style={styles.tableCell}>{child.grade || '—'}</Text>
-                    <Text style={styles.tableCell}>{formatLastActive(child.lastActiveAt)}</Text>
+              <Text style={styles.cardTitle}>Linked Parent</Text>
+              {parent ? (
+                <>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Name</Text>
+                    <Text style={styles.infoValue}>
+                      {[parent.firstName, parent.lastName].filter(Boolean).join(' ') || parent.displayName || '—'}
+                    </Text>
                   </View>
-                ))
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Email</Text>
+                    <Text style={styles.infoValue}>{parent.email || '—'}</Text>
+                  </View>
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Phone</Text>
+                    <Text style={styles.infoValue}>{parent.phone || parent.phoneNumber || '—'}</Text>
+                  </View>
+                </>
+              ) : (
+                <Text style={styles.emptyText}>No linked parent found.</Text>
               )}
             </View>
           ) : null}
         </>
       ) : (
-        <Text style={styles.subtitle}>Parent profile not found.</Text>
+        <Text style={styles.subtitle}>Child profile not found.</Text>
       )}
 
       <Modal visible={confirmOpen} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>
-              {confirmType === 'block' ? 'Block parent account?' : 'Remove parent account?'}
+              {confirmType === 'block' ? 'Block child account?' : 'Remove child account?'}
             </Text>
             <Text style={styles.modalSubtitle}>
               {confirmType === 'block'
-                ? 'This will prevent the parent from accessing the app until unblocked.'
-                : 'This marks the parent as removed. This action can be reversed by an admin.'}
+                ? 'This will prevent the child from accessing the app until unblocked.'
+                : 'This marks the child as removed. This action can be reversed by an admin.'}
             </Text>
             <View style={styles.modalActions}>
               <Pressable
@@ -301,8 +239,8 @@ export const ParentDetailScreen: React.FC = () => {
               <Pressable
                 accessibilityRole="button"
                 onPress={async () => {
-                  if (!parentId) return;
-                  const ref = doc(db, 'users', parentId);
+                  if (!childId) return;
+                  const ref = doc(db, 'users', childId);
                   if (confirmType === 'block') {
                     await updateDoc(ref, { isBlocked: true, blockedAt: serverTimestamp() });
                   } else {
@@ -407,8 +345,6 @@ const styles = StyleSheet.create({
   infoLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
   infoValue: { color: '#fff', fontSize: 12, fontWeight: '600' },
   emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
-  tableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
-  tableCell: { color: '#fff', fontSize: 11, flex: 1 },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
