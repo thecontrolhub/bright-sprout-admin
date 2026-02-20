@@ -17,14 +17,13 @@ const NAV: NavGroup[] = [
     items: [
       { key: 'baselineGenerate', label: 'Generate' },
       { key: 'baselineRuns', label: 'Active Runs' },
-      { key: 'poolExplorer', label: 'Pool Explorer' },
     ],
   },
   {
     title: 'Curriculum',
     collapsible: true,
     items: [
-      { key: 'curriculumMaths', label: 'Baseline' },
+      { key: 'curriculumBaseline', label: 'Baseline' },
       { key: 'curriculumLiteracy', label: 'Courses' },
     ],
   },

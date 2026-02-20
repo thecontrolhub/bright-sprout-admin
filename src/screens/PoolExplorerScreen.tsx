@@ -4,6 +4,7 @@ import { collectionGroup, onSnapshot, query } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
 import { db } from '../firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
+import { startBaselineGeneration } from '../firebase/functions';
 
 type PoolRow = {
   id: string;
@@ -27,6 +28,10 @@ export const PoolExplorerScreen: React.FC = () => {
   const { navigate } = useNavigation();
   const [page, setPage] = React.useState(1);
   const pageSize = 10;
+  const [viewMode, setViewMode] = React.useState<'compact' | 'comfortable'>('comfortable');
+  const [regenDifficulty, setRegenDifficulty] = React.useState<1 | 2 | 3>(1);
+  const [regenLoading, setRegenLoading] = React.useState<string | null>(null);
+  const [regenError, setRegenError] = React.useState('');
 
   React.useEffect(() => {
     const poolQuery = query(collectionGroup(db, 'skills'));
@@ -97,6 +102,35 @@ export const PoolExplorerScreen: React.FC = () => {
               </Text>
             </Pressable>
           ))}
+          <View style={styles.viewModeWrap}>
+            <Pressable
+              onPress={() => setViewMode('compact')}
+              style={[styles.viewChip, viewMode === 'compact' && styles.viewChipActive]}
+            >
+              <Text style={[styles.viewChipText, viewMode === 'compact' && styles.viewChipTextActive]}>Compact</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setViewMode('comfortable')}
+              style={[styles.viewChip, viewMode === 'comfortable' && styles.viewChipActive]}
+            >
+              <Text style={[styles.viewChipText, viewMode === 'comfortable' && styles.viewChipTextActive]}>Comfort</Text>
+            </Pressable>
+          </View>
+        </View>
+        <View style={styles.subRow}>
+          <Text style={styles.subRowLabel}>Regenerate difficulty:</Text>
+          {[1, 2, 3].map((level) => (
+            <Pressable
+              key={`regen-${level}`}
+              onPress={() => setRegenDifficulty(level as 1 | 2 | 3)}
+              style={[styles.filterChip, regenDifficulty === level && styles.filterChipActive]}
+            >
+              <Text style={[styles.filterChipText, regenDifficulty === level && styles.filterChipTextActive]}>
+                {level}
+              </Text>
+            </Pressable>
+          ))}
+          {regenError ? <Text style={styles.errorText}>{regenError}</Text> : null}
         </View>
         <View style={styles.tableHeader}>
           <Text style={[styles.tableHeaderText, styles.colSkill]}>Skill</Text>
@@ -116,7 +150,10 @@ export const PoolExplorerScreen: React.FC = () => {
           </View>
         ) : (
           pagedRows.map((row) => (
-            <View key={`${row.subject}-${row.stageId}-${row.skillId}`} style={styles.tableRow}>
+            <View
+              key={`${row.subject}-${row.stageId}-${row.skillId}`}
+              style={[styles.tableRow, viewMode === 'compact' && styles.tableRowCompact]}
+            >
               <Text style={[styles.tableCell, styles.colSkill]} numberOfLines={1}>{row.skillId}</Text>
               <Text style={[styles.tableCell, styles.colSubject]} numberOfLines={1}>{row.subject}</Text>
               <Text style={[styles.tableCell, styles.colStage]} numberOfLines={1}>{row.stageId}</Text>
@@ -128,10 +165,28 @@ export const PoolExplorerScreen: React.FC = () => {
               </View>
               <View style={styles.actionCell}>
                 <Pressable
-                  onPress={() => navigate('poolReview', { poolPath: row.poolPath })}
+                  onPress={async () => {
+                    setRegenError('');
+                    setRegenLoading(row.skillId);
+                    try {
+                      await startBaselineGeneration({
+                        subject: row.subject,
+                        stageId: row.stageId,
+                        version: '2026.02',
+                        seed: `${row.subject}:${row.stageId}:2026.02`,
+                        difficulty: regenDifficulty,
+                      });
+                    } catch (err: any) {
+                      setRegenError(err?.message || 'Regeneration failed.');
+                    } finally {
+                      setRegenLoading(null);
+                    }
+                  }}
                   style={styles.actionButton}
                 >
-                  <Text style={styles.actionButtonText}>Review</Text>
+                  <Text style={styles.actionButtonText}>
+                    {regenLoading === row.skillId ? 'Working…' : 'Regenerate'}
+                  </Text>
                 </Pressable>
               </View>
             </View>
@@ -185,10 +240,25 @@ const styles = StyleSheet.create({
   filterChipActive: { backgroundColor: 'rgba(122, 92, 255, 0.25)', borderColor: 'rgba(122, 92, 255, 0.6)' },
   filterChipText: { color: 'rgba(255,255,255,0.7)', fontSize: 11, textTransform: 'capitalize' },
   filterChipTextActive: { color: '#fff', fontWeight: '700' },
+  viewModeWrap: { flexDirection: 'row', gap: 6, marginLeft: 'auto' },
+  viewChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  viewChipActive: { backgroundColor: 'rgba(124,92,255,0.3)', borderColor: 'rgba(124,92,255,0.6)' },
+  viewChipText: { color: 'rgba(255,255,255,0.7)', fontSize: 10 },
+  viewChipTextActive: { color: '#fff', fontWeight: '700' },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' },
+  subRowLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginRight: 6 },
   tableHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8, alignItems: 'center' },
   tableHeaderText: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700', flex: 1 },
   tableHeaderAction: { textAlign: 'right' },
   tableRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 10, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)', alignItems: 'center' },
+  tableRowCompact: { paddingVertical: 6 },
   tableCell: { color: '#fff', fontSize: 11, flex: 1, paddingRight: 6 },
   colSkill: { flex: 2.4 },
   colSubject: { flex: 1 },
@@ -221,6 +291,7 @@ const styles = StyleSheet.create({
   loadingRow: { paddingVertical: 16, alignItems: 'center' },
   emptyRow: { paddingVertical: 16, alignItems: 'center' },
   emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  errorText: { color: '#ffb4b4', fontSize: 11 },
   pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 },
   pageButton: {
     paddingHorizontal: 12,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
-import { doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
 import { db } from '../firebase/firestore';
 import { tokens } from '../styles/tokens';
@@ -14,6 +14,7 @@ export const PoolReviewScreen: React.FC = () => {
   const poolPath = params.poolPath;
   const [loading, setLoading] = React.useState(true);
   const [spec, setSpec] = React.useState<any | null>(null);
+  const [items, setItems] = React.useState<any[]>([]);
   const [notes, setNotes] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [difficultyTabs, setDifficultyTabs] = React.useState<Record<string, 1 | 2 | 3>>({});
@@ -35,6 +36,18 @@ export const PoolReviewScreen: React.FC = () => {
     });
     return () => unsub();
   }, [poolPath]);
+
+  React.useEffect(() => {
+    if (!spec?.subject || !spec?.stageId || !spec?.version || !spec?.skillId) return;
+    const poolDocId = `${spec.subject}_${spec.stageId}_${spec.version}`;
+    const itemsRef = collection(db, 'baselineItems', poolDocId, 'skills', spec.skillId, 'items');
+    const unsub = onSnapshot(itemsRef, (snap) => {
+      const next: any[] = [];
+      snap.forEach((docSnap) => next.push({ id: docSnap.id, ...docSnap.data() }));
+      setItems(next);
+    });
+    return () => unsub();
+  }, [spec?.subject, spec?.stageId, spec?.version, spec?.skillId]);
 
   const setStatus = React.useCallback(async (status: ReviewStatus) => {
     if (!spec?.path) return;
@@ -67,7 +80,7 @@ export const PoolReviewScreen: React.FC = () => {
           <Text style={styles.title}>Pool Review</Text>
           <Text style={styles.subtitle}>Inspect full baseline pool spec and approve or request changes.</Text>
         </View>
-        <Pressable onPress={() => navigate('poolExplorer')} style={styles.backButton}>
+        <Pressable onPress={() => navigate('curriculumBaseline')} style={styles.backButton}>
           <Text style={styles.backButtonText}>Back</Text>
         </Pressable>
       </View>
@@ -139,8 +152,11 @@ export const PoolReviewScreen: React.FC = () => {
                   ))}
                 </View>
                 <Text style={styles.templateMeta}>Example items:</Text>
-                {(template.exampleItems || [])
-                  .filter((item: any) => item.difficulty === (difficultyTabs[template.templateId] || 1))
+                {items
+                  .filter((item: any) =>
+                    item.templateId === template.templateId &&
+                    item.difficulty === (difficultyTabs[template.templateId] || 1)
+                  )
                   .slice(0, 5)
                   .map((item: any) => (
                     <View key={item.itemId} style={styles.itemCard}>

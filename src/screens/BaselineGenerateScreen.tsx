@@ -1,14 +1,26 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { tokens } from '../styles/tokens';
-import { generateCambridgeBaseline, startBaselineGeneration } from '../firebase/functions';
+import { startBaselineGeneration } from '../firebase/functions';
 import { db } from '../firebase/firestore';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, orderBy, query } from 'firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
 
+type BlueprintRow = {
+  id: string;
+  subject: string;
+  stageId: string;
+  version: string;
+  skillsCount: number;
+  createdAt?: any;
+};
 
 export const BaselineGenerateScreen: React.FC = () => {
   const { navigate } = useNavigation();
+  const { width } = useWindowDimensions();
+  const isWide = width >= 1100;
+  const [blueprints, setBlueprints] = React.useState<BlueprintRow[]>([]);
+  const [loadingBlueprints, setLoadingBlueprints] = React.useState(true);
   const [subjects, setSubjects] = React.useState<Array<{ id: string; label: string }>>([]);
   const [stages, setStages] = React.useState<Array<{ id: string; label: string }>>([]);
   const [loadingConfig, setLoadingConfig] = React.useState(true);
@@ -18,6 +30,7 @@ export const BaselineGenerateScreen: React.FC = () => {
   const [version, setVersion] = React.useState('2026.02');
   const [seed, setSeed] = React.useState('');
   const [seedTouched, setSeedTouched] = React.useState(false);
+  const [difficulty, setDifficulty] = React.useState<1 | 2 | 3>(1);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [result, setResult] = React.useState<any>(null);
@@ -68,6 +81,27 @@ export const BaselineGenerateScreen: React.FC = () => {
   }, [subject, stageId]);
 
   React.useEffect(() => {
+    const blueprintsQuery = query(collection(db, 'baselineBlueprints'), orderBy('createdAt', 'desc'));
+    const unsub = onSnapshot(blueprintsQuery, (snap) => {
+      const next: BlueprintRow[] = [];
+      snap.forEach((docSnap) => {
+        const data = docSnap.data() as any;
+        next.push({
+          id: docSnap.id,
+          subject: data.subject,
+          stageId: data.stageId,
+          version: data.version,
+          skillsCount: Array.isArray(data.skills) ? data.skills.length : 0,
+          createdAt: data.createdAt,
+        });
+      });
+      setBlueprints(next);
+      setLoadingBlueprints(false);
+    });
+    return () => unsub();
+  }, []);
+
+  React.useEffect(() => {
     const autoSeed = `${subject}:${stageId}:${version}`;
     if (!seedTouched) {
       setSeed(autoSeed);
@@ -84,6 +118,7 @@ export const BaselineGenerateScreen: React.FC = () => {
         stageId,
         version,
         seed: seed || `${subject}:${stageId}:${version}`,
+        difficulty,
       });
       setResult(res?.data || res);
     } catch (err: any) {
@@ -98,7 +133,37 @@ export const BaselineGenerateScreen: React.FC = () => {
       <Text style={styles.title}>Baseline Generator</Text>
       <Text style={styles.subtitle}>Launch Cambridge-aligned baseline runs and review outputs.</Text>
 
-      <View style={styles.card}>
+      <View style={[styles.panelRow, isWide ? styles.panelRowWide : styles.panelRowStacked]}>
+        <View style={[styles.panel, styles.panelLeft]}>
+          <Text style={styles.cardTitle}>Baseline Blueprints</Text>
+          <Text style={styles.cardText}>Generated blueprint registry by subject and stage.</Text>
+          <View style={styles.tableHeader}>
+            <Text style={[styles.tableHeaderText, styles.colSubject]}>Subject</Text>
+            <Text style={[styles.tableHeaderText, styles.colStage]}>Stage</Text>
+            <Text style={[styles.tableHeaderText, styles.colVersion]}>Version</Text>
+            <Text style={[styles.tableHeaderText, styles.colSkills]}>Skills</Text>
+          </View>
+          {loadingBlueprints ? (
+            <View style={styles.loadingRow}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          ) : blueprints.length === 0 ? (
+            <View style={styles.emptyRow}>
+              <Text style={styles.emptyText}>No blueprints generated yet.</Text>
+            </View>
+          ) : (
+            blueprints.map((row) => (
+              <View key={row.id} style={styles.tableRow}>
+                <Text style={[styles.tableCell, styles.colSubject]} numberOfLines={1}>{row.subject}</Text>
+                <Text style={[styles.tableCell, styles.colStage]} numberOfLines={1}>{row.stageId}</Text>
+                <Text style={[styles.tableCell, styles.colVersion]} numberOfLines={1}>{row.version}</Text>
+                <Text style={[styles.tableCell, styles.colSkills]} numberOfLines={1}>{row.skillsCount}</Text>
+              </View>
+            ))
+          )}
+        </View>
+
+        <View style={[styles.panel, styles.panelRight]}>
         <Text style={styles.cardTitle}>Run Configuration</Text>
         <Text style={styles.cardText}>Select subject + stage and trigger the generator.</Text>
 
@@ -146,6 +211,27 @@ export const BaselineGenerateScreen: React.FC = () => {
           })}
         </View>
 
+        <Text style={styles.formLabel}>Difficulty</Text>
+        <View style={styles.chipRow}>
+          {[1, 2, 3].map((level) => {
+            const active = difficulty === level;
+            return (
+              <Pressable
+                key={`difficulty-${level}`}
+                accessibilityRole="button"
+                onPress={() => setDifficulty(level as 1 | 2 | 3)}
+                style={({ pressed }) => [
+                  styles.chip,
+                  active && styles.chipActive,
+                  pressed && styles.chipPressed,
+                ]}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>Difficulty {level}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
         <View style={styles.formRow}>
           <View style={styles.formField}>
             <Text style={styles.formLabel}>Version</Text>
@@ -183,24 +269,24 @@ export const BaselineGenerateScreen: React.FC = () => {
         >
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryButtonText}>Generate</Text>}
         </Pressable>
-      </View>
-
-      {result ? (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Run Started</Text>
-          <Text style={styles.cardText}>Run ID: {result.runId || result?.data?.runId || 'unknown'}</Text>
-          <Text style={styles.cardText}>
-            Skills: {result.counts?.skills ?? 0} · Templates: {result.counts?.templates ?? 0} · Samples: {result.counts?.sampleItems ?? 0}
-          </Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => navigate('baselineRuns')}
-            style={({ pressed }) => [styles.linkButton, pressed && styles.primaryButtonPressed]}
-          >
-            <Text style={styles.linkText}>View runs</Text>
-          </Pressable>
+        {result ? (
+          <View style={styles.resultCard}>
+            <Text style={styles.cardTitle}>Run Started</Text>
+            <Text style={styles.cardText}>Run ID: {result.runId || result?.data?.runId || 'unknown'}</Text>
+            <Text style={styles.cardText}>
+              Skills: {result.counts?.skills ?? 0} · Templates: {result.counts?.templates ?? 0} · Items: {result.counts?.sampleItems ?? 0}
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => navigate('baselineRuns')}
+              style={({ pressed }) => [styles.linkButton, pressed && styles.primaryButtonPressed]}
+            >
+              <Text style={styles.linkText}>View runs</Text>
+            </Pressable>
+          </View>
+        ) : null}
         </View>
-      ) : null}
+      </View>
     </ScrollView>
   );
 };
@@ -210,12 +296,25 @@ const styles = StyleSheet.create({
   content: { padding: tokens.spacing.xl, gap: tokens.spacing.lg, paddingBottom: 64 },
   title: { fontSize: 22, fontWeight: '800', color: '#fff' },
   subtitle: { fontSize: 12, color: 'rgba(255,255,255,0.6)' },
-  card: {
+  panelRow: { gap: tokens.spacing.lg },
+  panelRowWide: { flexDirection: 'row' },
+  panelRowStacked: { flexDirection: 'column' },
+  panel: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: tokens.radii.lg,
     padding: tokens.spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
+  },
+  panelLeft: { flex: 1 },
+  panelRight: { flex: 1.1 },
+  resultCard: {
+    marginTop: 16,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: tokens.radii.lg,
+    padding: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   cardTitle: { color: '#fff', fontSize: 15, fontWeight: '700' },
   cardText: { color: 'rgba(255,255,255,0.6)', fontSize: 11, marginTop: 6 },
@@ -270,4 +369,15 @@ const styles = StyleSheet.create({
   },
   linkText: { color: '#d6ccff', fontSize: 11, fontWeight: '700' },
   errorText: { color: '#ffb4b4', fontSize: 11, marginTop: 10 },
+  tableHeader: { flexDirection: 'row', marginTop: 12, marginBottom: 6 },
+  tableHeaderText: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '700', flex: 1 },
+  tableRow: { flexDirection: 'row', paddingVertical: 8, borderBottomWidth: 1, borderColor: 'rgba(255,255,255,0.06)' },
+  tableCell: { color: '#fff', fontSize: 11, flex: 1, paddingRight: 6 },
+  colSubject: { flex: 1.1 },
+  colStage: { flex: 0.8 },
+  colVersion: { flex: 0.9 },
+  colSkills: { flex: 0.6 },
+  loadingRow: { paddingVertical: 12, alignItems: 'center' },
+  emptyRow: { paddingVertical: 12, alignItems: 'center' },
+  emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
 });
