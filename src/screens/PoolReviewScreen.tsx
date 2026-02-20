@@ -17,6 +17,7 @@ export const PoolReviewScreen: React.FC = () => {
   const [notes, setNotes] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [difficultyTabs, setDifficultyTabs] = React.useState<Record<string, 1 | 2 | 3>>({});
+  const [expandedItems, setExpandedItems] = React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     if (!poolPath) return;
@@ -152,10 +153,42 @@ export const PoolReviewScreen: React.FC = () => {
                         <Text style={styles.itemLabel}>Choices</Text>
                         <Text style={styles.itemValue}>{(item.choices || []).join(', ')}</Text>
                       </View>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemLabel}>Surface</Text>
-                        <Text style={styles.itemValue}>{item.surface?.kind || '—'} ({item.surface?.width}x{item.surface?.height})</Text>
-                      </View>
+                      <Pressable
+                        onPress={() =>
+                          setExpandedItems((prev) => ({ ...prev, [item.itemId]: !prev[item.itemId] }))
+                        }
+                        style={styles.itemToggle}
+                      >
+                        <Text style={styles.itemToggleText}>
+                          {expandedItems[item.itemId] ? 'Hide details' : 'View details'}
+                        </Text>
+                      </Pressable>
+                      {expandedItems[item.itemId] && (
+                        <View style={styles.itemDetails}>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemLabel}>Skill</Text>
+                            <Text style={styles.itemValue}>{item.skillId}</Text>
+                          </View>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemLabel}>Template</Text>
+                            <Text style={styles.itemValue}>{item.templateId}</Text>
+                          </View>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemLabel}>Difficulty</Text>
+                            <Text style={styles.itemValue}>{item.difficulty}</Text>
+                          </View>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemLabel}>Surface</Text>
+                            <Text style={styles.itemValue}>
+                              {item.surface?.kind || '—'} ({item.surface?.width}x{item.surface?.height})
+                            </Text>
+                          </View>
+                          <Text style={styles.itemLabel}>Objects</Text>
+                          <Text style={styles.itemValueSmall}>
+                            {(item.surface?.objects || []).map((obj: any) => obj.type).join(', ') || '—'}
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   ))}
               </View>
@@ -304,4 +337,22 @@ const styles = StyleSheet.create({
   itemRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 },
   itemLabel: { color: 'rgba(255,255,255,0.6)', fontSize: 10 },
   itemValue: { color: '#fff', fontSize: 10, flex: 1, textAlign: 'right' },
+  itemValueSmall: { color: 'rgba(255,255,255,0.7)', fontSize: 10, marginTop: 4 },
+  itemToggle: {
+    marginTop: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(122, 92, 255, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(122, 92, 255, 0.5)',
+  },
+  itemToggleText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+  itemDetails: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
 });

@@ -25,6 +25,8 @@ export const PoolExplorerScreen: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [statusFilter, setStatusFilter] = React.useState<'all' | 'pending' | 'approved' | 'changes' | 'rejected'>('all');
   const { navigate } = useNavigation();
+  const [page, setPage] = React.useState(1);
+  const pageSize = 10;
 
   React.useEffect(() => {
     const poolQuery = query(collectionGroup(db, 'skills'));
@@ -60,6 +62,9 @@ export const PoolExplorerScreen: React.FC = () => {
   const filteredRows = statusFilter === 'all'
     ? rows
     : rows.filter((row) => (row.reviewStatus || 'pending') === statusFilter);
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = filteredRows.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const statusStyle = React.useCallback((status?: PoolRow['reviewStatus']) => {
     switch (status) {
@@ -110,7 +115,7 @@ export const PoolExplorerScreen: React.FC = () => {
             <Text style={styles.emptyText}>No pool specs found.</Text>
           </View>
         ) : (
-          filteredRows.map((row) => (
+          pagedRows.map((row) => (
             <View key={`${row.subject}-${row.stageId}-${row.skillId}`} style={styles.tableRow}>
               <Text style={[styles.tableCell, styles.colSkill]} numberOfLines={1}>{row.skillId}</Text>
               <Text style={[styles.tableCell, styles.colSubject]} numberOfLines={1}>{row.subject}</Text>
@@ -133,6 +138,25 @@ export const PoolExplorerScreen: React.FC = () => {
           ))
         )}
       </View>
+      {!loading && filteredRows.length > 0 && (
+        <View style={styles.pagination}>
+          <Pressable
+            onPress={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={safePage === 1}
+            style={[styles.pageButton, safePage === 1 && styles.pageButtonDisabled]}
+          >
+            <Text style={styles.pageButtonText}>Prev</Text>
+          </Pressable>
+          <Text style={styles.pageInfo}>Page {safePage} of {totalPages}</Text>
+          <Pressable
+            onPress={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+            disabled={safePage === totalPages}
+            style={[styles.pageButton, safePage === totalPages && styles.pageButtonDisabled]}
+          >
+            <Text style={styles.pageButtonText}>Next</Text>
+          </Pressable>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -197,4 +221,16 @@ const styles = StyleSheet.create({
   loadingRow: { paddingVertical: 16, alignItems: 'center' },
   emptyRow: { paddingVertical: 16, alignItems: 'center' },
   emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
+  pagination: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 16 },
+  pageButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  pageButtonDisabled: { opacity: 0.4 },
+  pageButtonText: { color: '#fff', fontSize: 11, fontWeight: '700' },
+  pageInfo: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
 });
