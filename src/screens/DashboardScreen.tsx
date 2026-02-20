@@ -1,60 +1,29 @@
-﻿import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, LayoutChangeEvent } from 'react-native';
 import { tokens } from '../styles/tokens';
 
-const kpis = [
-  { label: 'Daily Active Parents', value: '1,284', delta: '+4.2%' },
-  { label: 'Daily Active Children', value: '2,913', delta: '+3.1%' },
-  { label: 'Weekly Active Users', value: '7,842', delta: '+5.6%' },
-  { label: 'DAU / WAU', value: '36%', delta: '+1.2%' },
+const kpiCards = [
+  { label: 'Active Parents', value: '1,284', sub: 'Last 7 days' },
+  { label: 'Active Children', value: '2,913', sub: 'Last 7 days' },
+  { label: 'DAU / WAU', value: '36%', sub: 'Engagement ratio' },
+  { label: 'Baseline completion %', value: '62%', sub: 'All subjects' },
+  { label: 'Median mastery %', value: '68%', sub: 'Across skills' },
 ];
 
-const engagement = [
-  { label: 'Avg sessions / child', value: '3.6', delta: '+0.4' },
-  { label: 'Avg session length', value: '7.6 min', delta: '+0.4' },
-  { label: 'Lessons completed', value: '12.4k', delta: '+8%' },
-  { label: '% baseline completed', value: '62%', delta: '+3%' },
-];
+const activeUsageSeries = [42, 48, 45, 52, 58, 60, 66];
+const baselineCompletionSeries = [34, 36, 39, 41, 46, 52, 58];
+const chartLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
-const outcomes = [
-  { label: 'Median mastery (Maths)', value: '72%' },
-  { label: 'Median mastery (Literacy)', value: '64%' },
-  { label: 'Median mastery (Science)', value: '59%' },
-  { label: '% skills mastered', value: '41%' },
-];
-
-const retention = [
-  { label: 'New parents (7d)', value: '312', delta: '+9%' },
-  { label: '7-day retention', value: '48%', delta: '+2%' },
-  { label: '30-day retention', value: '31%', delta: '+1%' },
-  { label: 'At-risk accounts', value: '126', delta: '-4%' },
-];
-
-const contentHealth = [
-  { label: 'Pool coverage (all)', value: '71%' },
-  { label: 'Missing skills', value: '42' },
-  { label: 'Validation fails', value: '3' },
-  { label: 'Generator error rate', value: '1.6%' },
-];
-
-const ops = [
-  { label: 'Runs this week', value: '48' },
-  { label: 'Success rate', value: '92%' },
-  { label: 'Avg run time', value: '8m 14s' },
-  { label: 'Queued runs', value: '5' },
-];
-
-const revenue = [
-  { label: 'Trials', value: '142' },
-  { label: 'Paid', value: '61' },
-  { label: 'Trial→Paid', value: '18%' },
-  { label: 'MRR', value: '$4.2k' },
+const masteryBySubject = [
+  { label: 'Maths', value: 72 },
+  { label: 'Literacy', value: 64 },
+  { label: 'Science', value: 58 },
 ];
 
 const alerts = [
-  { title: 'Literacy Stage 2 pool low', detail: 'Needs 120 more items for target coverage.' },
-  { title: 'Science Stage 5 error rate high', detail: 'Recent run failed schema validation.' },
-  { title: 'Parent onboarding drop', detail: 'Login-to-first-session down 5% WoW.' },
+  { title: 'Failed generations', detail: '3 runs failed in the last 24 hours.' },
+  { title: 'Top failing skills', detail: 'Literacy Stage 2: CVC Builder, Rhyme Race.' },
+  { title: 'Generator errors', detail: 'Schema validation errors up 1.6% this week.' },
 ];
 
 const recentRuns = [
@@ -66,69 +35,38 @@ const recentRuns = [
 export const DashboardScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.title}>Admin Dashboard</Text>
-          <Text style={styles.subtitle}>Live overview of Bright Sprout growth, content health, and learning outcomes.</Text>
+      <Text style={styles.title}>Dashboard</Text>
+      <Text style={styles.subtitle}>Live snapshot of parent + child engagement.</Text>
+
+      <View style={styles.kpiRow}>
+        {kpiCards.map((card) => (
+          <View key={card.label} style={styles.kpiCard}>
+            <Text style={styles.kpiLabel}>{card.label}</Text>
+            <Text style={styles.kpiValue}>{card.value}</Text>
+            <Text style={styles.kpiSub}>{card.sub}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.splitRow}>
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Usage trend (DAU)</Text>
+          <LineChart data={activeUsageSeries} labels={chartLabels} />
         </View>
-        <View style={styles.badge}>
-          <Text style={styles.badgeLabel}>Live</Text>
-          <Text style={styles.badgeValue}>Last updated 2 min ago</Text>
+        <View style={styles.chartCard}>
+          <Text style={styles.chartTitle}>Mastery by subject</Text>
+          <BarChart data={masteryBySubject} suffix="%" />
         </View>
       </View>
 
-      <DashboardSection title="Active Usage">
-        <MetricGrid items={kpis} />
-      </DashboardSection>
+      <View style={styles.chartCard}>
+        <Text style={styles.chartTitle}>Baseline completion trend</Text>
+        <LineChart data={baselineCompletionSeries} labels={chartLabels} />
+      </View>
 
-      <DashboardSection title="Engagement & Learning">
-        <MetricGrid items={engagement} />
-      </DashboardSection>
-
-      <DashboardSection title="Mastery & Outcomes">
-        <MetricGrid items={outcomes} />
-      </DashboardSection>
-
-      <DashboardSection title="Retention & Churn">
-        <MetricGrid items={retention} />
-      </DashboardSection>
-
-      <DashboardSection title="Content Health">
-        <MetricGrid items={contentHealth} />
-      </DashboardSection>
-
-      <DashboardSection title="Operational">
-        <MetricGrid items={ops} />
-      </DashboardSection>
-
-      <DashboardSection title="Revenue (Preview)">
-        <MetricGrid items={revenue} />
-      </DashboardSection>
-
-      <DashboardSection title="Weekly Activity">
+      <View style={styles.splitRow}>
         <View style={styles.card}>
-          <View style={styles.chartRow}>
-            {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((day, idx) => (
-              <View key={day + idx} style={styles.chartBarWrap}>
-                <View style={[styles.chartBar, { height: 28 + idx * 6 }]} />
-                <Text style={styles.chartLabel}>{day}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      </DashboardSection>
-
-      <View style={styles.grid}>
-        <View style={styles.cardLarge}>
-          <Text style={styles.cardTitle}>Content Coverage</Text>
-          <Text style={styles.cardSub}>Blueprint vs pool coverage by subject</Text>
-          <ProgressRow label="Maths 78%" width="78%" />
-          <ProgressRow label="Literacy 72%" width="72%" />
-          <ProgressRow label="Science 64%" width="64%" />
-        </View>
-        <View style={styles.cardLarge}>
-          <Text style={styles.cardTitle}>Operational Alerts</Text>
-          <Text style={styles.cardSub}>Items that need attention</Text>
+          <Text style={styles.sectionTitle}>Alerts</Text>
           {alerts.map((alert) => (
             <View key={alert.title} style={styles.alertRow}>
               <View style={styles.alertDot} />
@@ -139,10 +77,8 @@ export const DashboardScreen: React.FC = () => {
             </View>
           ))}
         </View>
-      </View>
-
-      <DashboardSection title="Recent Baseline Runs">
-        <View style={styles.table}>
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Recent runs</Text>
           <View style={styles.tableHeader}>
             <Text style={styles.tableHeaderText}>Run</Text>
             <Text style={styles.tableHeaderText}>Subject</Text>
@@ -160,54 +96,110 @@ export const DashboardScreen: React.FC = () => {
             </View>
           ))}
         </View>
-      </DashboardSection>
+      </View>
     </ScrollView>
   );
 };
 
-const DashboardSection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
-  <View style={styles.section}>
-    <Text style={styles.sectionTitle}>{title}</Text>
-    {children}
-  </View>
-);
+type LineChartProps = { data: number[]; labels: string[] };
 
-const MetricGrid: React.FC<{ items: Array<{ label: string; value: string; delta?: string }> }> = ({ items }) => (
-  <View style={styles.kpiRow}>
-    {items.map((kpi) => (
-      <View key={kpi.label} style={styles.kpiCard}>
-        <Text style={styles.kpiLabel}>{kpi.label}</Text>
-        <Text style={styles.kpiValue}>{kpi.value}</Text>
-        {kpi.delta ? <Text style={styles.kpiDelta}>{kpi.delta} vs last week</Text> : null}
-      </View>
-    ))}
-  </View>
-);
+type BarChartItem = { label: string; value: number };
 
-const ProgressRow: React.FC<{ label: string; width: string }> = ({ label, width }) => (
-  <View style={styles.progressRow}>
-    <View style={styles.progressBar}>
-      <View style={[styles.progressFill, { width }]as any} />
+const BarChart: React.FC<{ data: BarChartItem[]; suffix?: string }> = ({ data, suffix = '' }) => {
+  const max = Math.max(...data.map((d) => d.value), 1);
+  return (
+    <View style={styles.barWrap}>
+      {data.map((item) => (
+        <View key={item.label} style={styles.barRow}>
+          <Text style={styles.barLabel}>{item.label}</Text>
+          <View style={styles.barTrack}>
+            <View style={[styles.barFill, { width: `${Math.round((item.value / max) * 100)}%` }]} />
+          </View>
+          <Text style={styles.barValue}>
+            {item.value}
+            {suffix}
+          </Text>
+        </View>
+      ))}
     </View>
-    <Text style={styles.progressLabel}>{label}</Text>
-  </View>
-);
+  );
+};
+
+const LineChart: React.FC<LineChartProps> = ({ data, labels }) => {
+  const [width, setWidth] = React.useState(0);
+  const height = 120;
+  const paddingX = 12;
+  const paddingY = 16;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+
+  const points = data.map((value, idx) => {
+    const x = paddingX + (width - paddingX * 2) * (idx / (data.length - 1 || 1));
+    const y = paddingY + (height - paddingY * 2) * (1 - (value - min) / range);
+    return { x, y };
+  });
+
+  const segments = points.slice(1).map((point, idx) => {
+    const prev = points[idx];
+    const dx = point.x - prev.x;
+    const dy = point.y - prev.y;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+    return { x: prev.x, y: prev.y, length, angle };
+  });
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    setWidth(event.nativeEvent.layout.width);
+  };
+
+  return (
+    <View style={styles.chartWrap} onLayout={handleLayout}>
+      <View style={[styles.chartPlot, { height }]}>
+        {width > 0 &&
+          segments.map((seg, idx) => (
+            <View
+              key={`seg-${idx}`}
+              style={[
+                styles.chartSegment,
+                {
+                  width: seg.length,
+                  transform: [{ translateX: seg.x }, { translateY: seg.y }, { rotateZ: `${seg.angle}deg` }],
+                },
+              ]}
+            />
+          ))}
+        {width > 0 &&
+          points.map((point, idx) => (
+            <View
+              key={`dot-${idx}`}
+              style={[
+                styles.chartDot,
+                {
+                  left: point.x - 4,
+                  top: point.y - 4,
+                },
+              ]}
+            />
+          ))}
+      </View>
+      <View style={styles.chartLabels}>
+        {labels.map((label, idx) => (
+          <Text key={`${label}-${idx}`} style={styles.chartLabel}>
+            {label}
+          </Text>
+        ))}
+      </View>
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   content: {
     padding: tokens.spacing.xl,
     gap: tokens.spacing.lg,
     paddingBottom: 64,
-  },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: tokens.spacing.lg,
-    flexWrap: 'wrap',
   },
   title: {
     fontSize: 24,
@@ -218,34 +210,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: 'rgba(255,255,255,0.6)',
     marginTop: 6,
-    maxWidth: 520,
-  },
-  badge: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: tokens.radii.pill,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  badgeLabel: {
-    color: '#bba7ff',
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  badgeValue: {
-    color: '#fff',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  section: {
-    gap: tokens.spacing.md,
-  },
-  sectionTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
   },
   kpiRow: {
     flexDirection: 'row',
@@ -256,23 +220,108 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: tokens.radii.lg,
     padding: tokens.spacing.lg,
-    minWidth: 160,
+    minWidth: 200,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
+    flexGrow: 1,
   },
   kpiLabel: {
     color: 'rgba(255,255,255,0.6)',
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   kpiValue: {
     color: '#fff',
-    fontSize: 22,
+    fontSize: 26,
     fontWeight: '800',
     marginVertical: 6,
   },
-  kpiDelta: {
-    color: '#b9a6ff',
+  kpiSub: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 11,
+  },
+  splitRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: tokens.spacing.lg,
+  },
+  chartCard: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: tokens.radii.lg,
+    padding: tokens.spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    gap: tokens.spacing.md,
+    flex: 1,
+    minWidth: 260,
+  },
+  chartTitle: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  chartWrap: {
+    gap: tokens.spacing.sm,
+  },
+  chartPlot: {
+    position: 'relative',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  chartSegment: {
+    position: 'absolute',
+    height: 2,
+    backgroundColor: 'rgba(124,92,255,0.8)',
+    borderRadius: 2,
+  },
+  chartDot: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: 'rgba(124,92,255,0.9)',
+  },
+  chartLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  chartLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 10,
+  },
+  barWrap: {
+    gap: 10,
+  },
+  barRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  barLabel: {
+    width: 70,
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  barTrack: {
+    flex: 1,
+    height: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderRadius: 999,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    backgroundColor: 'rgba(124,92,255,0.8)',
+  },
+  barValue: {
+    width: 40,
+    textAlign: 'right',
+    color: 'rgba(255,255,255,0.7)',
     fontSize: 11,
     fontWeight: '600',
   },
@@ -282,66 +331,14 @@ const styles = StyleSheet.create({
     padding: tokens.spacing.lg,
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.16)',
-  },
-  chartRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: 16,
-  },
-  chartBarWrap: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  chartBar: {
-    width: 10,
-    borderRadius: 6,
-    backgroundColor: 'rgba(124,92,255,0.65)',
-  },
-  chartLabel: {
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.5)',
-  },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: tokens.spacing.lg,
-  },
-  cardLarge: {
     flex: 1,
     minWidth: 260,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
   },
-  cardTitle: {
+  sectionTitle: {
     color: '#fff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
-  },
-  cardSub: {
-    color: 'rgba(255,255,255,0.6)',
-    fontSize: 11,
-    marginVertical: 8,
-  },
-  progressRow: {
     marginBottom: 12,
-  },
-  progressBar: {
-    height: 8,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: tokens.radii.pill,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: 'rgba(124,92,255,0.8)',
-  },
-  progressLabel: {
-    color: 'rgba(255,255,255,0.7)',
-    fontSize: 11,
-    marginTop: 6,
   },
   alertRow: {
     flexDirection: 'row',
@@ -367,13 +364,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.6)',
     fontSize: 11,
     marginTop: 4,
-  },
-  table: {
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
   },
   tableHeader: {
     flexDirection: 'row',

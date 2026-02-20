@@ -2,34 +2,69 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { tokens } from '../styles/tokens';
 import { generateCambridgeBaseline } from '../firebase/functions';
+import { db } from '../firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
 
-const SUBJECTS = [
-  { id: 'maths', label: 'Maths' },
-  { id: 'literacy', label: 'Literacy' },
-  { id: 'science', label: 'Science' },
-];
-
-const STAGES = [
-  { id: 'early', label: 'Early Years' },
-  { id: 'stage1', label: 'Stage 1' },
-  { id: 'stage2', label: 'Stage 2' },
-  { id: 'stage3', label: 'Stage 3' },
-  { id: 'stage4', label: 'Stage 4' },
-  { id: 'stage5', label: 'Stage 5' },
-  { id: 'stage6', label: 'Stage 6' },
-];
 
 export const BaselineGenerateScreen: React.FC = () => {
   const { navigate } = useNavigation();
-  const [subject, setSubject] = React.useState('maths');
-  const [stageId, setStageId] = React.useState('early');
+  const [subjects, setSubjects] = React.useState<Array<{ id: string; label: string }>>([]);
+  const [stages, setStages] = React.useState<Array<{ id: string; label: string }>>([]);
+  const [loadingConfig, setLoadingConfig] = React.useState(true);
+
+  const [subject, setSubject] = React.useState('');
+  const [stageId, setStageId] = React.useState('');
   const [version, setVersion] = React.useState('2026.02');
   const [seed, setSeed] = React.useState('');
   const [devMode, setDevMode] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [result, setResult] = React.useState<any>(null);
+
+  
+  React.useEffect(() => {
+    let cancelled = false;
+    const loadConfig = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'config', 'app'));
+        const data = snap.data() || {};
+        const subjectList = Array.isArray(data.subjects) ? data.subjects : [];
+        const stageList = Array.isArray(data.grades)
+          ? data.grades
+          : [];
+
+        const mappedSubjects = subjectList
+          .map((item: any) => ({
+            id: String(item.subjectId || item.id || item.label || '').toLowerCase(),
+            label: String(item.label || item.subjectId || '').trim() || 'Subject',
+          }))
+          .filter((item: any) => item.id);
+
+        const mappedStages = stageList
+          .map((item: any) => ({
+            id: String(item.stageId || item.id || '').trim(),
+            label: String(item.label || item.stageId || '').trim() || 'Stage',
+          }))
+          .filter((item: any) => item.id);
+
+        if (!cancelled) {
+          setSubjects(mappedSubjects);
+          setStages(mappedStages);
+          if (!subject && mappedSubjects[0]) setSubject(mappedSubjects[0].id);
+          if (!stageId && mappedStages[0]) setStageId(mappedStages[0].id);
+          setLoadingConfig(false);
+        }
+      } catch (err) {
+        if (!cancelled) setLoadingConfig(false);
+      }
+    };
+
+    loadConfig();
+    return () => {
+      cancelled = true;
+    };
+  }, [subject, stageId]);
 
   React.useEffect(() => {
     const autoSeed = `${subject}:${stageId}:${version}`;
@@ -66,8 +101,9 @@ export const BaselineGenerateScreen: React.FC = () => {
         <Text style={styles.cardText}>Select subject + stage and trigger the generator.</Text>
 
         <Text style={styles.formLabel}>Subject</Text>
+        {loadingConfig ? <Text style={styles.helpText}>Loading subjects...</Text> : null}
         <View style={styles.chipRow}>
-          {SUBJECTS.map((opt) => {
+          {subjects.map((opt) => {
             const active = subject === opt.id;
             return (
               <Pressable
@@ -87,8 +123,9 @@ export const BaselineGenerateScreen: React.FC = () => {
         </View>
 
         <Text style={styles.formLabel}>Stage</Text>
+        {loadingConfig ? <Text style={styles.helpText}>Loading stages...</Text> : null}
         <View style={styles.chipRow}>
-          {STAGES.map((opt) => {
+          {stages.map((opt) => {
             const active = stageId === opt.id;
             return (
               <Pressable

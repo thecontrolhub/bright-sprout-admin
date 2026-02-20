@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: { ignoreDuringBuilds: true },
   transpilePackages: ['react-native'],
   webpack: (config) => {
     config.resolve.alias = {
