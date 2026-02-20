@@ -57,12 +57,11 @@ export const CommonGradesScreen: React.FC = () => {
         stageId: stageId.trim() || '',
       };
       if (!snap.exists()) {
-        await setDoc(ref, { grades: [nextItem], gradesList: [trimmed] }, { merge: true });
+        await setDoc(ref, { grades: [nextItem] }, { merge: true });
       } else {
         const current = Array.isArray(snap.data()?.grades) ? snap.data()?.grades : [];
         await updateDoc(ref, {
           grades: arrayUnion(nextItem),
-          gradesList: current.map((g: any) => (typeof g === 'string' ? g : g?.label)).filter(Boolean).concat(trimmed),
         });
       }
       setValue('');
@@ -97,7 +96,7 @@ export const CommonGradesScreen: React.FC = () => {
           stageId: stageId.trim() || '',
         };
       });
-      await updateDoc(ref, { grades: updated, gradesList: updated.map((g: any) => (typeof g === 'string' ? g : g?.label)).filter(Boolean) });
+      await updateDoc(ref, { grades: updated });
       setValue('');
       setAgeBand('');
       setStageId('');
@@ -125,7 +124,7 @@ export const CommonGradesScreen: React.FC = () => {
         const label = typeof item === 'string' ? item : item?.label || item?.name;
         return label !== activeItem;
       });
-      await updateDoc(ref, { grades: updated, gradesList: updated.map((g: any) => (typeof g === 'string' ? g : g?.label)).filter(Boolean) });
+      await updateDoc(ref, { grades: updated });
       setActiveItem('');
       setRemoveOpen(false);
     } catch (err: any) {

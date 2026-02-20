@@ -46,12 +46,11 @@ export const CommonSubjectsScreen: React.FC = () => {
       const snap = await getDoc(ref);
       const nextItem: SubjectItem = { label: trimmed, subjectId: subjectId.trim() || '' };
       if (!snap.exists()) {
-        await setDoc(ref, { subjects: [nextItem], subjectsList: [trimmed] }, { merge: true });
+        await setDoc(ref, { subjects: [nextItem] }, { merge: true });
       } else {
         const current = Array.isArray(snap.data()?.subjects) ? snap.data()?.subjects : [];
         await updateDoc(ref, {
           subjects: arrayUnion(nextItem),
-          subjectsList: current.map((s: any) => (typeof s === 'string' ? s : s?.label)).filter(Boolean).concat(trimmed),
         });
       }
       setValue('');
@@ -83,7 +82,6 @@ export const CommonSubjectsScreen: React.FC = () => {
       });
       await updateDoc(ref, {
         subjects: updated,
-        subjectsList: updated.map((s: any) => (typeof s === 'string' ? s : s?.label)).filter(Boolean),
       });
       setValue('');
       setSubjectId('');
@@ -113,7 +111,6 @@ export const CommonSubjectsScreen: React.FC = () => {
       });
       await updateDoc(ref, {
         subjects: updated,
-        subjectsList: updated.map((s: any) => (typeof s === 'string' ? s : s?.label)).filter(Boolean),
       });
       setActiveItem('');
       setRemoveOpen(false);

@@ -17,6 +17,7 @@ export const BaselineGenerateScreen: React.FC = () => {
   const [stageId, setStageId] = React.useState('');
   const [version, setVersion] = React.useState('2026.02');
   const [seed, setSeed] = React.useState('');
+  const [seedTouched, setSeedTouched] = React.useState(false);
   const [devMode, setDevMode] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -53,6 +54,7 @@ export const BaselineGenerateScreen: React.FC = () => {
           setStages(mappedStages);
           if (!subject && mappedSubjects[0]) setSubject(mappedSubjects[0].id);
           if (!stageId && mappedStages[0]) setStageId(mappedStages[0].id);
+          setSeedTouched(false);
           setLoadingConfig(false);
         }
       } catch (err) {
@@ -68,8 +70,10 @@ export const BaselineGenerateScreen: React.FC = () => {
 
   React.useEffect(() => {
     const autoSeed = `${subject}:${stageId}:${version}`;
-    setSeed((prev) => (prev ? prev : autoSeed));
-  }, [subject, stageId, version]);
+    if (!seedTouched) {
+      setSeed(autoSeed);
+    }
+  }, [subject, stageId, version, seedTouched]);
 
   const handleGenerate = async () => {
     setError('');
@@ -159,7 +163,7 @@ export const BaselineGenerateScreen: React.FC = () => {
             <Text style={styles.formLabel}>Seed</Text>
             <TextInput
               value={seed}
-              onChangeText={setSeed}
+              onChangeText={(value) => { setSeedTouched(true); setSeed(value); }}
               placeholder={`${subject}:${stageId}:${version}`}
               placeholderTextColor="rgba(255,255,255,0.4)"
               style={styles.input}
