@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { tokens } from '../styles/tokens';
-import { generateCambridgeBaseline } from '../firebase/functions';
+import { generateCambridgeBaseline, startBaselineGeneration } from '../firebase/functions';
 import { db } from '../firebase/firestore';
 import { doc, getDoc } from 'firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
@@ -18,7 +18,6 @@ export const BaselineGenerateScreen: React.FC = () => {
   const [version, setVersion] = React.useState('2026.02');
   const [seed, setSeed] = React.useState('');
   const [seedTouched, setSeedTouched] = React.useState(false);
-  const [devMode, setDevMode] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   const [result, setResult] = React.useState<any>(null);
@@ -80,12 +79,11 @@ export const BaselineGenerateScreen: React.FC = () => {
     setResult(null);
     setLoading(true);
     try {
-      const res = await generateCambridgeBaseline({
+      const res = await startBaselineGeneration({
         subject,
         stageId,
         version,
         seed: seed || `${subject}:${stageId}:${version}`,
-        devMode,
       });
       setResult(res?.data || res);
     } catch (err: any) {
@@ -171,21 +169,6 @@ export const BaselineGenerateScreen: React.FC = () => {
           </View>
         </View>
 
-        <View style={styles.toggleRow}>
-          <Text style={styles.formLabel}>Dev mode (sample items)</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => setDevMode((prev) => !prev)}
-            style={({ pressed }) => [
-              styles.toggle,
-              devMode && styles.toggleActive,
-              pressed && styles.chipPressed,
-            ]}
-          >
-            <Text style={styles.toggleText}>{devMode ? 'On' : 'Off'}</Text>
-          </Pressable>
-        </View>
-
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
         <Pressable
@@ -204,8 +187,8 @@ export const BaselineGenerateScreen: React.FC = () => {
 
       {result ? (
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Run Result</Text>
-          <Text style={styles.cardText}>Status: {result.status || 'unknown'}</Text>
+          <Text style={styles.cardTitle}>Run Started</Text>
+          <Text style={styles.cardText}>Run ID: {result.runId || result?.data?.runId || 'unknown'}</Text>
           <Text style={styles.cardText}>
             Skills: {result.counts?.skills ?? 0} · Templates: {result.counts?.templates ?? 0} · Samples: {result.counts?.sampleItems ?? 0}
           </Text>
@@ -264,16 +247,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginTop: 6,
   },
-  toggleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
-  toggle: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  toggleActive: { borderColor: 'rgba(124,92,255,0.6)', backgroundColor: 'rgba(124,92,255,0.2)' },
-  toggleText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   primaryButton: {
     marginTop: 18,
     backgroundColor: 'rgba(124,92,255,0.35)',

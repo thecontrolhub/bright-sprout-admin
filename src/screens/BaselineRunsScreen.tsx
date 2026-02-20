@@ -40,7 +40,7 @@ export const BaselineRunsScreen: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
-    const runsQuery = query(collection(db, 'baselineGenerationRuns'), orderBy('finishedAt', 'desc'));
+    const runsQuery = query(collection(db, 'baselineGenerationRuns'), orderBy('startedAt', 'desc'));
     const unsub = onSnapshot(runsQuery, (snap) => {
       const rows: RunRow[] = [];
       snap.forEach((docSnap) => {

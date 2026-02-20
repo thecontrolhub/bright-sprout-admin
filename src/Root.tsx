@@ -8,6 +8,7 @@ import { DashboardScreen } from './screens/DashboardScreen';
 import { BaselineGenerateScreen } from './screens/BaselineGenerateScreen';
 import { BaselineRunsScreen } from './screens/BaselineRunsScreen';
 import { PoolExplorerScreen } from './screens/PoolExplorerScreen';
+import { PoolReviewScreen } from './screens/PoolReviewScreen';
 import { CurriculumMathsScreen } from './screens/CurriculumMathsScreen';
 import { CurriculumLiteracyScreen } from './screens/CurriculumLiteracyScreen';
 import { CurriculumScienceScreen } from './screens/CurriculumScienceScreen';
@@ -59,6 +60,13 @@ const ScreenRouter: React.FC = () => {
     return (
       <AdminLayout>
         <PoolExplorerScreen />
+      </AdminLayout>
+    );
+  }
+  if (screen === 'poolReview') {
+    return (
+      <AdminLayout>
+        <PoolReviewScreen />
       </AdminLayout>
     );
   }

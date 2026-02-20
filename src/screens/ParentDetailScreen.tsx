@@ -182,8 +182,12 @@ export const ParentDetailScreen: React.FC = () => {
             <View style={styles.card}>
               <Text style={styles.cardTitle}>Address</Text>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Street</Text>
-                <Text style={styles.infoValue}>{parent.address?.street || '—'}</Text>
+                <Text style={styles.infoLabel}>Line 1</Text>
+                <Text style={styles.infoValue}>{parent.address?.line1 || '—'}</Text>
+              </View>
+                  <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Line 2</Text>
+                <Text style={styles.infoValue}>{parent.address?.line2 || '—'}</Text>
               </View>
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>City</Text>
@@ -196,10 +200,6 @@ export const ParentDetailScreen: React.FC = () => {
               <View style={styles.infoRow}>
                 <Text style={styles.infoLabel}>Postal Code</Text>
                 <Text style={styles.infoValue}>{parent.address?.postalCode || '—'}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Country</Text>
-                <Text style={styles.infoValue}>{parent.address?.country || '—'}</Text>
               </View>
             </View>
           ) : null}
