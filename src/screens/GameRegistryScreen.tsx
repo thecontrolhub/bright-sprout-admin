@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
 import { collection, doc, onSnapshot, setDoc, deleteDoc, orderBy, query } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
@@ -126,7 +126,7 @@ export const GameRegistryScreen: React.FC = () => {
             <View key={game.slug} style={styles.tableRow}>
               <Text style={[styles.tableCell, styles.colSlug]} numberOfLines={1}>{game.slug}</Text>
               <Text style={[styles.tableCell, styles.colType]}>{game.type}</Text>
-              <Text style={[styles.tableCell, styles.colDesc]} numberOfLines={1}>{game.description || '�'}</Text>
+              <Text style={[styles.tableCell, styles.colDesc]} numberOfLines={1}>{game.description || '—'}</Text>
               <View style={[styles.tableCell, styles.colActions, styles.actionCell]}>
                 <Pressable onPress={() => openEdit(game)} style={styles.actionButton}>
                   <Text style={styles.actionText}>Edit</Text>
@@ -314,3 +314,4 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#ffb4b4', fontSize: 11, marginTop: 10 },
 });
+
