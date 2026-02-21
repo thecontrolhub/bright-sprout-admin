@@ -1,38 +1,74 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, LayoutChangeEvent, ActivityIndicator } from 'react-native';
 import { tokens } from '../styles/tokens';
+import { db } from '../firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
 
-const kpiCards = [
-  { label: 'Active Parents', value: '1,284', sub: 'Last 7 days' },
-  { label: 'Active Children', value: '2,913', sub: 'Last 7 days' },
-  { label: 'DAU / WAU', value: '36%', sub: 'Engagement ratio' },
-  { label: 'Baseline completion %', value: '62%', sub: 'All subjects' },
-  { label: 'Median mastery %', value: '68%', sub: 'Across skills' },
-];
 
-const activeUsageSeries = [42, 48, 45, 52, 58, 60, 66];
-const baselineCompletionSeries = [34, 36, 39, 41, 46, 52, 58];
-const chartLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
-const masteryBySubject = [
-  { label: 'Maths', value: 72 },
-  { label: 'Literacy', value: 64 },
-  { label: 'Science', value: 58 },
-];
-
-const alerts = [
-  { title: 'Failed generations', detail: '3 runs failed in the last 24 hours.' },
-  { title: 'Top failing skills', detail: 'Literacy Stage 2: CVC Builder, Rhyme Race.' },
-  { title: 'Generator errors', detail: 'Schema validation errors up 1.6% this week.' },
-];
-
-const recentRuns = [
-  { id: 'RUN-1209', subject: 'Maths', stage: 'Stage 3', status: 'Success', time: '12 min ago' },
-  { id: 'RUN-1208', subject: 'Science', stage: 'Stage 5', status: 'Failed', time: '48 min ago' },
-  { id: 'RUN-1207', subject: 'Literacy', stage: 'Stage 1', status: 'Partial', time: '1 hr ago' },
-];
+type AdminStats = {
+  activeParents7d?: number;
+  activeChildren7d?: number;
+  dau?: number;
+  wau?: number;
+  dauWauRatio?: number;
+  baselineCompletionPct?: number;
+  medianMasteryPct?: number;
+  usageTrend7d?: { label: string; count: number }[];
+  baselineTrend7d?: { label: string; percent: number }[];
+  masteryBySubject?: { subject: string; value: number }[];
+  alerts?: { failedRuns24h?: number; topFailingSkills?: string[]; generatorErrors?: string[] };
+  recentRuns?: { id: string; subject: string; stage: string; status: string; startedAt?: any }[];
+};
 
 export const DashboardScreen: React.FC = () => {
+  const [stats, setStats] = React.useState<AdminStats | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const unsub = onSnapshot(
+      doc(db, 'adminStats', 'dashboard'),
+      (snap) => {
+        setStats(snap.exists() ? (snap.data() as AdminStats) : null);
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  const kpiCards = [
+    { label: 'Active Parents', value: stats?.activeParents7d ?? 0, sub: 'Last 7 days' },
+    { label: 'Active Children', value: stats?.activeChildren7d ?? 0, sub: 'Last 7 days' },
+    { label: 'DAU / WAU', value: `${stats?.dauWauRatio ?? 0}%`, sub: 'Engagement ratio' },
+    { label: 'Baseline completion %', value: `${stats?.baselineCompletionPct ?? 0}%`, sub: 'All subjects' },
+    { label: 'Median mastery %', value: `${stats?.medianMasteryPct ?? 0}%`, sub: 'Across skills' },
+  ];
+
+  const activeUsageSeries = stats?.usageTrend7d?.map((d) => d.count) || [];
+  const baselineCompletionSeries = stats?.baselineTrend7d?.map((d) => d.percent) || [];
+  const chartLabels = stats?.usageTrend7d?.map((d) => d.label) || ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  const masteryBySubject = (stats?.masteryBySubject || []).map((s) => ({
+    label: s.subject === 'maths' ? 'Maths' : s.subject === 'literacy' ? 'Literacy' : s.subject === 'science' ? 'Science' : s.subject,
+    value: s.value,
+  }));
+
+  const alerts = [
+    { title: 'Failed generations', detail: `${stats?.alerts?.failedRuns24h ?? 0} runs failed in the last 24 hours.` },
+    { title: 'Top failing skills', detail: (stats?.alerts?.topFailingSkills || []).join(', ') || 'No failing skills detected.' },
+    { title: 'Generator errors', detail: (stats?.alerts?.generatorErrors || []).join(', ') || 'No generator errors logged.' },
+  ];
+
+  const recentRuns = (stats?.recentRuns || []).map((run) => ({
+    id: run.id,
+    subject: run.subject,
+    stage: run.stage,
+    status: run.status,
+    time: run.startedAt?.toDate ? run.startedAt.toDate().toLocaleString() : '—',
+  }));
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Dashboard</Text>
@@ -47,21 +83,22 @@ export const DashboardScreen: React.FC = () => {
           </View>
         ))}
       </View>
+      {loading ? <ActivityIndicator color="#fff" /> : null}
 
       <View style={styles.splitRow}>
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Usage trend (DAU)</Text>
-          <LineChart data={activeUsageSeries} labels={chartLabels} />
+          <LineChart data={activeUsageSeries.length ? activeUsageSeries : [0, 0, 0, 0, 0, 0, 0]} labels={chartLabels} />
         </View>
         <View style={styles.chartCard}>
           <Text style={styles.chartTitle}>Mastery by subject</Text>
-          <BarChart data={masteryBySubject} suffix="%" />
+          <BarChart data={masteryBySubject.length ? masteryBySubject : [{ label: 'No data', value: 0 }]} suffix="%" />
         </View>
       </View>
 
       <View style={styles.chartCard}>
         <Text style={styles.chartTitle}>Baseline completion trend</Text>
-        <LineChart data={baselineCompletionSeries} labels={chartLabels} />
+        <LineChart data={baselineCompletionSeries.length ? baselineCompletionSeries : [0, 0, 0, 0, 0, 0, 0]} labels={chartLabels} />
       </View>
 
       <View style={styles.splitRow}>
@@ -95,6 +132,7 @@ export const DashboardScreen: React.FC = () => {
               <Text style={styles.tableCell}>{run.time}</Text>
             </View>
           ))}
+          {!recentRuns.length ? <Text style={styles.tableEmpty}>No recent runs.</Text> : null}
         </View>
       </View>
     </ScrollView>
@@ -387,5 +425,10 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     flex: 1,
+  },
+  tableEmpty: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+    marginTop: 8,
   },
 });
