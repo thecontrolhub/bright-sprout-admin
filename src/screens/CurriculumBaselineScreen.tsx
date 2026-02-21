@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
-import { collection, collectionGroup, onSnapshot, query } from 'firebase/firestore';
+import { collectionGroup, onSnapshot, query } from 'firebase/firestore';
 import { tokens } from '../styles/tokens';
 import { db } from '../firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
@@ -19,9 +19,10 @@ type PoolRow = {
 export const CurriculumBaselineScreen: React.FC = () => {
   const [rows, setRows] = React.useState<PoolRow[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [expanded, setExpanded] = React.useState<string | null>(null);
-  const [items, setItems] = React.useState<Record<string, any[]>>({});
-  const { navigate } = useNavigation();
+  const { navigate, params } = useNavigation();
+  const filterSubject = params?.subject;
+  const filterStageId = params?.stageId;
+  const filterVersion = params?.version;
 
   React.useEffect(() => {
     const poolQuery = query(collectionGroup(db, 'skills'));
@@ -41,25 +42,17 @@ export const CurriculumBaselineScreen: React.FC = () => {
           poolPath: docSnap.ref.path,
         });
       });
-      setRows(next);
+      const filtered = next.filter((row) => {
+        if (filterSubject && row.subject !== filterSubject) return false;
+        if (filterStageId && row.stageId !== filterStageId) return false;
+        if (filterVersion && row.version !== filterVersion) return false;
+        return true;
+      });
+      setRows(filtered);
       setLoading(false);
     });
     return () => unsub();
   }, []);
-
-  React.useEffect(() => {
-    if (!expanded) return;
-    const row = rows.find((r) => r.skillId === expanded);
-    if (!row?.subject || !row?.stageId || !row?.version) return;
-    const poolDocId = `${row.subject}_${row.stageId}_${row.version}`;
-    const itemsRef = collection(db, 'baselineItems', poolDocId, 'skills', row.skillId, 'items');
-    const unsub = onSnapshot(itemsRef, (snap) => {
-      const next: any[] = [];
-      snap.forEach((docSnap) => next.push({ id: docSnap.id, ...docSnap.data() }));
-      setItems((prev) => ({ ...prev, [row.skillId]: next }));
-    });
-    return () => unsub();
-  }, [expanded, rows]);
 
   const statusStyle = React.useCallback((status?: PoolRow['reviewStatus']) => {
     switch (status) {
@@ -110,10 +103,10 @@ export const CurriculumBaselineScreen: React.FC = () => {
               </View>
               <View style={styles.actionCell}>
                 <Pressable
-                  onPress={() => setExpanded((prev) => (prev === row.skillId ? null : row.skillId))}
+                  onPress={() => navigate('poolReview', { poolPath: row.poolPath })}
                   style={styles.actionButton}
                 >
-                  <Text style={styles.actionButtonText}>{expanded === row.skillId ? 'Hide' : 'View Items'}</Text>
+                  <Text style={styles.actionButtonText}>Review</Text>
                 </Pressable>
               </View>
             </View>
@@ -121,35 +114,6 @@ export const CurriculumBaselineScreen: React.FC = () => {
         )}
       </View>
 
-      {expanded && (
-        <View style={styles.itemsCard}>
-          <Text style={styles.sectionTitle}>Baseline Items · {expanded}</Text>
-          {(items[expanded] || []).length === 0 ? (
-            <Text style={styles.emptyText}>No items generated for this skill.</Text>
-          ) : (
-            (items[expanded] || []).slice(0, 20).map((item) => (
-              <View key={item.itemId} style={styles.itemRowCard}>
-                <Text style={styles.itemPrompt}>{item.prompt?.text || item.prompt?.audioText || '—'}</Text>
-                <View style={styles.itemMetaRow}>
-                  <Text style={styles.itemMeta}>Template: {item.templateId}</Text>
-                  <Text style={styles.itemMeta}>Difficulty: {item.difficulty}</Text>
-                </View>
-                <Text style={styles.itemMeta}>Answer: {String(item.correctAnswer)}</Text>
-                <Text style={styles.itemMeta}>Choices: {(item.choices || []).join(', ')}</Text>
-              </View>
-            ))
-          )}
-          <Pressable
-            onPress={() => {
-              const row = rows.find((r) => r.skillId === expanded);
-              if (row) navigate('poolReview', { poolPath: row.poolPath });
-            }}
-            style={styles.linkButton}
-          >
-            <Text style={styles.linkText}>Open full review</Text>
-          </Pressable>
-        </View>
-      )}
     </ScrollView>
   );
 };
@@ -202,33 +166,4 @@ const styles = StyleSheet.create({
   loadingRow: { paddingVertical: 16, alignItems: 'center' },
   emptyRow: { paddingVertical: 16, alignItems: 'center' },
   emptyText: { color: 'rgba(255,255,255,0.6)', fontSize: 11 },
-  itemsCard: {
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: tokens.radii.lg,
-    padding: tokens.spacing.lg,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.12)',
-  },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: '#fff', marginBottom: 8 },
-  itemRowCard: {
-    marginTop: 10,
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.06)',
-  },
-  itemPrompt: { color: '#fff', fontSize: 12, marginBottom: 6 },
-  itemMetaRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  itemMeta: { color: 'rgba(255,255,255,0.65)', fontSize: 10 },
-  linkButton: {
-    marginTop: 12,
-    alignSelf: 'flex-start',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
-  },
-  linkText: { color: '#d6ccff', fontSize: 11, fontWeight: '700' },
 });

@@ -6,6 +6,7 @@ export type ScreenName =
   | 'baselineGenerate'
   | 'baselineRuns'
   | 'poolReview'
+  | 'blueprintReview'
   | 'curriculumBaseline'
   | 'curriculumMaths'
   | 'curriculumLiteracy'
