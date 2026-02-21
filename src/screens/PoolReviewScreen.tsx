@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, TextInput, ActivityIndicator } from 'react-native';
-import { collection, doc, onSnapshot, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, onSnapshot, updateDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useNavigation } from '../navigation/NavigationContext';
 import { db } from '../firebase/firestore';
 import { tokens } from '../styles/tokens';
@@ -15,6 +15,7 @@ export const PoolReviewScreen: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [spec, setSpec] = React.useState<any | null>(null);
   const [items, setItems] = React.useState<any[]>([]);
+  const [gameMeta, setGameMeta] = React.useState<any | null>(null);
   const [notes, setNotes] = React.useState('');
   const [saving, setSaving] = React.useState(false);
   const [difficultyTabs, setDifficultyTabs] = React.useState<Record<string, 1 | 2 | 3>>({});
@@ -36,6 +37,28 @@ export const PoolReviewScreen: React.FC = () => {
     });
     return () => unsub();
   }, [poolPath]);
+
+  React.useEffect(() => {
+    if (!spec?.gameSlug) {
+      setGameMeta(null);
+      return;
+    }
+    let cancelled = false;
+    const loadGame = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'gameRegistry', String(spec.gameSlug)));
+        if (!cancelled) {
+          setGameMeta(snap.exists() ? snap.data() : null);
+        }
+      } catch {
+        if (!cancelled) setGameMeta(null);
+      }
+    };
+    loadGame();
+    return () => {
+      cancelled = true;
+    };
+  }, [spec?.gameSlug]);
 
   React.useEffect(() => {
     if (!spec?.subject || !spec?.stageId || !spec?.version || !spec?.skillId) return;
@@ -99,6 +122,18 @@ export const PoolReviewScreen: React.FC = () => {
             <Text style={styles.summaryTitle}>{spec.skillId}</Text>
             <Text style={styles.summaryMeta}>Subject: {spec.subject}</Text>
             <Text style={styles.summaryMeta}>Stage: {spec.stageId}</Text>
+            <Text style={styles.summaryMeta}>Game: {spec.gameSlug || '—'}</Text>
+            <Text style={styles.summaryMeta}>Interaction: {spec.interaction || '—'}</Text>
+            {gameMeta ? (
+              <View style={styles.gameMetaBox}>
+                <Text style={styles.gameMetaTitle}>Game Registry</Text>
+                <Text style={styles.gameMetaText}>{gameMeta.slug || spec.gameSlug}</Text>
+                <Text style={styles.gameMetaText}>{gameMeta.type || 'baseline'}</Text>
+                {gameMeta.description ? (
+                  <Text style={styles.gameMetaDesc}>{gameMeta.description}</Text>
+                ) : null}
+              </View>
+            ) : null}
             <Text style={styles.summaryMeta}>Templates: {Array.isArray(spec.templates) ? spec.templates.length : 0}</Text>
             <Text style={styles.summaryMeta}>Status: {(spec.reviewStatus || 'pending').toUpperCase()}</Text>
           </View>
@@ -266,6 +301,17 @@ const styles = StyleSheet.create({
   },
   summaryTitle: { fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 6 },
   summaryMeta: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginBottom: 4 },
+  gameMetaBox: {
+    marginTop: 8,
+    padding: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+  },
+  gameMetaTitle: { color: '#fff', fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  gameMetaText: { color: 'rgba(255,255,255,0.8)', fontSize: 11 },
+  gameMetaDesc: { color: 'rgba(255,255,255,0.65)', fontSize: 10, marginTop: 4 },
   reviewCard: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: tokens.radii.lg,
