@@ -38,7 +38,7 @@ export const ChildDetailScreen: React.FC = () => {
     const childRef = doc(db, 'users', childId);
     let parentUnsub: (() => void) | null = null;
     const unsubChild = onSnapshot(childRef, (snap) => {
-      const data = snap.exists() ? { id: snap.id, ...snap.data() } : null;
+      const data: any = snap.exists() ? { id: snap.id, ...snap.data() } : null;
       setChild(data);
       setLoading(false);
       const parentId = data?.parentUid || data?.parentId;

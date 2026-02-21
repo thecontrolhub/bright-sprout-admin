@@ -394,4 +394,5 @@ const styles = StyleSheet.create({
   },
   commentMeta: { color: 'rgba(255,255,255,0.6)', fontSize: 10, marginBottom: 4 },
   commentText: { color: '#fff', fontSize: 12 },
+  modalInput: {}
 });

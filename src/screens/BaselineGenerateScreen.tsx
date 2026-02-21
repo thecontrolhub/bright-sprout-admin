@@ -523,4 +523,5 @@ const styles = StyleSheet.create({
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   modalClose: { paddingHorizontal: 10, paddingVertical: 6 },
   modalCloseText: { color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+  helpText: {}
 });
