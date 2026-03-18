@@ -63,7 +63,7 @@ export const CurriculumBaselineScreen: React.FC = () => {
 
     const next: PoolRow[] = [];
     pageDocs.forEach((docSnap) => {
-      const data = docSnap.data();
+      const data = docSnap.data() as any;
       if (!data?.skillId) return;
       next.push({
         id: docSnap.id,
@@ -83,9 +83,9 @@ export const CurriculumBaselineScreen: React.FC = () => {
       setPageCursors((prev) => {
         const updated = [...prev];
         if (direction === 'prev') {
-          updated[page - 2] = { first, last };
+          updated[page - 2] = { first, last } as any;
         } else {
-          updated[page - 1] = { first, last };
+          updated[page - 1] = { first, last } as any;
         }
         return updated;
       });

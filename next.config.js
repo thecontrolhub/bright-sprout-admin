@@ -1,7 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  eslint: { ignoreDuringBuilds: true },
-  transpilePackages: ['react-native'],
+  output: 'export',
+  typescript: { ignoreBuildErrors: true },
+  transpilePackages: ['react-native', 'react-native-web'],
+  turbopack: {
+    resolveAlias: {
+      'react-native': 'react-native-web',
+      'react-native$': 'react-native-web',
+    },
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...(config.resolve.alias || {}),

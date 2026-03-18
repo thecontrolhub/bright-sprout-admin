@@ -1,6 +1,7 @@
 ﻿{
   "hosting": {
     "public": "out",
+    "site": "admin-bright-sprout",
     "ignore": [
       "firebase.json",
       "**/.*",
